@@ -11,10 +11,13 @@ class LocalDBHandler {
   /// Create a LocalDBHandler and open the database connection
   static Future<LocalDBHandler> setup() async {
     LocalDBHandler.db = await _localSetup();
+    // final columns = await LocalDBHandler.runRawSelectQuery("PRAGMA table_info(plugins);", []);
+    // print("Struktur kolom: $columns");
     return LocalDBHandler._();
   }
 
   static Future<Database> _localSetup() async {
+    // print("Database path: ${join(await getDatabasesPath(), 'sapiku.db')}");
     return await openDatabase(
       join(await getDatabasesPath(), 'sapiku.db'),
       version: 1,
@@ -30,48 +33,72 @@ class LocalDBHandler {
 
   /// Run Query String that doesn't return anything
   /// Call it action query
-  static Future<void> runActionQuery(String query, [List<Object?>? arguments]) async {
+  static Future<void> runActionQuery(
+    String query, [
+    List<Object?>? arguments,
+  ]) async {
     await db?.execute(query, arguments);
   }
 
   /// Run Query on specific table and retrieve all that need to return something
   /// Call it select query.
-  static Future<List<Map<String, Object?>>?> runSelectQuery(String tableName) async {
+  static Future<List<Map<String, Object?>>?> runSelectQuery(
+    String tableName,
+  ) async {
     if (db == null) {
       // Show Error
       return null;
-    }else{
+    } else {
       return await db!.query(tableName);
     }
   }
 
   /// Run Raw Query String that need to return something
   /// Call it select query
-  static Future<List<Map<String, Object?>>?> runRawSelectQuery(String query, [List<Object?>? arguments]) async {
+  static Future<List<Map<String, Object?>>?> runRawSelectQuery(
+    String query, [
+    List<Object?>? arguments,
+  ]) async {
     if (db == null) {
       // Show Error
       return null;
-    }else{
+    } else {
       return await db!.rawQuery(query, arguments);
     }
   }
 
   /// Run Raw Insert String, will return id if success
-  static Future<int?> runRawInsertQuery(String query, [List<Object?>? arguments]) async {
+  static Future<int?> runRawInsertQuery(
+    String query, [
+    List<Object?>? arguments,
+  ]) async {
     if (db == null) {
       // Show Error
       return null;
-    }else{
+    } else {
       return await db!.rawInsert(query, arguments);
     }
   }
+
   /// Run Raw Update String, will return id if success
-  static Future<int?> runRawUpdateQuery(String query, [List<Object?>? arguments]) async {
+  static Future<int?> runRawUpdateQuery(
+    String query, [
+    List<Object?>? arguments,
+  ]) async {
     if (db == null) {
       // Show Error
       return null;
-    }else{
+    } else {
       return await db!.rawUpdate(query, arguments);
+    }
+  }
+
+  static Batch? getBatch() {
+    if (db == null) {
+      // Show Error
+      return null;
+    } else {
+      return db!.batch();
     }
   }
 }

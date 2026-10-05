@@ -67,6 +67,7 @@ Future<Uint8List?> getQrPng() async {
   return byteData?.buffer.asUint8List();
 }
 
+/// Use this to save QR to Gallery
 Future<bool> saveQrToGallery() async {
   try {
     if (!await Gal.hasAccess()) {

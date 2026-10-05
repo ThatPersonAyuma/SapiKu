@@ -1,10 +1,74 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
+import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sapiku/plugins/management/utils/qr.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
+import 'package:sapiku/utils/file_handler.dart';
 
+// #region Temporary
+/// Simulate setup in download plugin, used in before main
+Future<void> managementSetup() async {
+  const tableName = "management";
+  final res = await LocalDBHandler.runRawSelectQuery(
+    "SELECT id, isSetup FROM plugins WHERE name = ?",
+    [tableName],
+  );
+  if (res == null) return;
+  if (res.isNotEmpty) {
+    if (res[0]['isSetup'] == 1) return;
+  }
+  ;
+  await LocalDBHandler.runActionQuery("""
+    -- 1. Tabel product
+    CREATE TABLE IF NOT EXISTS ${Product.tableName} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        price REAL NOT NULL,
+        stock INTEGER DEFAULT 0,
+        image_path TEXT NULL,
+        qr_image_path TEXT NULL
+    );
+
+    -- 2. Tabel Transactions
+    CREATE TABLE IF NOT EXISTS ${Transaction.tableName} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 3. Tabel Transaction Details
+    CREATE TABLE IF NOT EXISTS ${TransactionDetail.tableName} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        transaction_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES produk(id) ON DELETE RESTRICT,
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+    );
+  """);
+  if (res.isNotEmpty) {
+    await LocalDBHandler.runRawUpdateQuery(
+      """
+      UPDATE plugins
+      SET isSetup = ?, isActive = ?
+      WHERE id = ?;
+      """,
+      [true, true, res[0]['id']],
+    );
+  } else {
+    await LocalDBHandler.runRawInsertQuery(
+      """
+      INSERT INTO plugins (name, isSetup, isActive)
+      values (?, ?, ?);
+      """,
+      [tableName, true, true],
+    );
+  }
+}
+// #endregion
+
+// #region DB Table Class Bridge
 class Product {
   static String tableName = "products";
   static String qrPhotoPath = "qr_images";
@@ -55,6 +119,7 @@ class Product {
     );
   }
 
+  /// Ensure QR is created
   Future<void> _ensureQrImage() async {
     if (qrImagePath == null) {
       final bytes = await getQrPngbyId(id);
@@ -101,47 +166,231 @@ class Product {
     String productName,
     double price,
     int stock,
-    String? imagePath,
-    String? qrImagePath,
+    XFile? imgFile,
   ) async {
+    final res = await LocalDBHandler.runRawSelectQuery(
+      "SELECT id FROM $tableName WHERE name = ?",
+      [productName],
+    );
+    // Show error product has same name
+    if (res != null && res.isNotEmpty) return null;
+    final imgPath = imgFile != null
+        ? (await FileHandler.storeImage(productImgPath, imgFile, null))
+        : null;
     int? id = await LocalDBHandler.runRawInsertQuery(
-      "INSERT INTO $tableName(product_name, price, stock, image_path, qr_image_path) VALUES(?, ?, ?, ?, ?)",
-      [productName, price, stock, imagePath, qrImagePath],
+      "INSERT INTO $tableName(product_name, price, stock, image_path) VALUES(?, ?, ?, ?)",
+      [productName, price, stock, imgPath],
     );
     if (id == null) return null;
-    return Product(id, productName, price, stock, imagePath, qrImagePath);
+    return Product(id, productName, price, stock, imgPath, null);
   }
 
   /// Save current Product, return int of count if success otherwise null
   Future<int?> saveToDb() async {
     return await LocalDBHandler.runRawUpdateQuery(
-      "UPDATE $tableName SET product_name = ?, price = ?, stock = ?, image_path = ?, qr_image_path = ? WHERE id = ?",
+      "UPDATE $tableName SET product_name = ?, price = ?, stock = ?, image_path = ?, qr_image_path = ? WHERE id = ?;",
       [productName, price, stock, imagePath, qrImagePath, id],
     );
   }
 
   /// Change product image and destroy before if exist also change current imagePath and save to the database
   Future<void> changeProductImage(XFile img) async {
-    final directory = await getApplicationDocumentsDirectory();
-
-    final filePath =
-        '${directory.path}/$productImgPath/${DateTime.now().millisecondsSinceEpoch}.png';
-    final bytes = await img.readAsBytes();
-    final File newFile = File(filePath);
-    await newFile.writeAsBytes(bytes);
-    if (imagePath != null) {
-      // if image before exist, destroy
-      final File oldFile = File(imagePath!);
-      if (await oldFile.exists()) {
-        await oldFile.delete();
-      }
-    }
-    imagePath = filePath;
+    imagePath = await FileHandler.storeImage(productImgPath, img, imagePath);
     saveToDb();
+  }
+
+  Future<bool> saveQRtoGallery() async {
+    try {
+      if (!await Gal.hasAccess()) {
+        final granted = await Gal.requestAccess();
+
+        if (!granted) {
+          return false;
+        }
+      }
+      if (qrImagePath == null) _ensureQrImage();
+      final img = File(qrImagePath!);
+      if (!img.existsSync()) {
+        return false;
+      }
+      final bytes = img.readAsBytesSync();
+
+      await Gal.putImageBytes(
+        bytes,
+        name: 'qr_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Save QR error: $e');
+      return false;
+    }
   }
 }
 
-
 class Transaction {
-  
+  static const tableName = "transactions";
+
+  int id;
+  DateTime datetime;
+  List<TransactionDetail>? transactionDetails;
+
+  Transaction(this.id, this.datetime);
+
+  static Transaction createFromMap(Map<String, Object?> map) {
+    return Transaction(map["id"] as int, map["date"] as DateTime);
+  }
+
+  Map<String, Object?> toMap() {
+    return {'id': id, "datetime": datetime};
+  }
+
+  @override
+  String toString() {
+    return 'Transaction{id: $id, datetime:$datetime}';
+  }
+
+  static Future<List<Transaction>?> getAll() async {
+    final List<Map<String, Object?>>? res =
+        await LocalDBHandler.runRawSelectQuery("SELECT * FROM $tableName;");
+    if (res == null) return null;
+    return [for (final map in res) Transaction.createFromMap(map)];
+  }
+
+  Future<List<TransactionDetail>?> getAllTransactionDetails() async {
+    final res = await LocalDBHandler.runRawSelectQuery("""
+      SELECT * FROM ${TransactionDetail.tableName}
+      WHERE transaction_id = $id;
+      """);
+    if (res == null) return null;
+    transactionDetails = [
+      for (final map in res) TransactionDetail.createFromMap(map),
+    ];
+    return transactionDetails;
+  }
+
+  Future<int?> saveToDB() async {
+    return await LocalDBHandler.runRawUpdateQuery(
+      """
+      UPDATE $tableName 
+      SET datetime = ?;
+      """,
+      [datetime],
+    );
+  }
 }
+
+class TransactionDetail {
+  static const tableName = "transaction_details";
+
+  int id;
+  int productId;
+  int transactionId;
+  int quantity;
+
+  TransactionDetail(this.id, this.productId, this.transactionId, this.quantity);
+
+  static TransactionDetail createFromMap(Map<String, Object?> map) {
+    return TransactionDetail(
+      map["id"] as int,
+      map["product_id"] as int,
+      map["transaction_id"] as int,
+      map["quantity"] as int,
+    );
+  }
+
+  Map<String, Object?> toMap() {
+    return {
+      'id': id,
+      'product_id': productId,
+      'transaction_id': transactionId,
+      'quantity': quantity,
+    };
+  }
+
+  @override
+  String toString() {
+    return 'TransactionDetail{id: $id, product_id: $productId,  transaction_id: $transactionId,  quantity: $quantity}';
+  }
+
+  Future<int?> saveToDB() async {
+    // Show error, quantity can't be null
+    if (quantity < 0) return null;
+    return await LocalDBHandler.runRawUpdateQuery(
+      """
+      UPDATE $tableName 
+      SET product_id = ?, transaction_id = ?, quanity = ?;
+      """,
+      [productId, transactionId, quantity],
+    );
+  }
+}
+
+// #endregion
+
+// -- Aktifkan dukungan Foreign Key di SQLite/SQFlite
+// PRAGMA foreign_keys = ON;
+
+// -- 1. Tabel Produk
+// CREATE TABLE IF NOT EXISTS produk (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     name TEXT NOT NULL UNIQUE,
+//     price REAL NOT NULL,
+//     stock INTEGER DEFAULT 0,
+//     image_path TEXT NULL,
+//     qr_image_path TEXT NOT NULL
+// );
+
+// -- 2. Tabel Transactions
+// CREATE TABLE IF NOT EXISTS transactions (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+// );
+
+// -- 3. Tabel Transaction Details
+// CREATE TABLE IF NOT EXISTS transaction_details (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     product_id INTEGER NOT NULL,
+//     transaction_id INTEGER NOT NULL,
+//     quantity INTEGER NOT NULL,
+//     FOREIGN KEY (product_id) REFERENCES produk(id) ON DELETE RESTRICT,
+//     FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+// );
+
+// -- 4. Tabel Penyakit
+// CREATE TABLE IF NOT EXISTS penyakit (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     name TEXT UNIQUE,
+//     solution TEXT NOT NULL
+// );
+
+// -- 5. Tabel Deteksi Penyakit
+// CREATE TABLE IF NOT EXISTS deteksi_penyakit (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     name TEXT NOT NULL,
+//     datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//     image_path TEXT NOT NULL
+// );
+
+// -- 6. Tabel Scan
+// CREATE TABLE IF NOT EXISTS scan (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     label_id INTEGER NOT NULL,
+//     detection_id INTEGER NOT NULL,
+//     x_center REAL NOT NULL,
+//     y_center REAL NOT NULL,
+//     width REAL NOT NULL,
+//     height REAL NOT NULL,
+//     result TEXT NOT NULL,
+//     confidence REAL NOT NULL,
+//     FOREIGN KEY (label_id) REFERENCES penyakit(id) ON DELETE RESTRICT,
+//     FOREIGN KEY (detection_id) REFERENCES deteksi_penyakit(id) ON DELETE CASCADE
+// );
+
+// -- 7. Tabel Plugins
+// CREATE TABLE IF NOT EXISTS plugins (
+//     id INTEGER PRIMARY KEY AUTOINCREMENT,
+//     name TEXT NOT NULL,
+//     isSetup INTEGER DEFAULT 0,
+//     isActive INTEGER DEFAULT 0
+// );

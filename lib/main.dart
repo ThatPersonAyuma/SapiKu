@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/core/fe/routing/app_router.dart';
+import 'package:sapiku/plugins/management/be_app.dart';
 import 'package:sapiku/plugins/management/fe_app.dart';
 import 'package:sapiku/utils/db/cloud_handler.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
@@ -11,6 +12,7 @@ Future<void> main() async {
   await cloudSetup();
   await test();
   await LocalDBHandler.setup();
+  await managementSetup();
   // #endregion
 
   runApp(const MyApp());
