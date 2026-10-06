@@ -32,13 +32,15 @@ class CascadePipeline {
   List<String> _labels = [];
 
   Future<void> initialize() async {
-    final yoloInterp = await Interpreter.fromAsset('assets/models/yolov8n_f32.tflite');
+    // final yoloInterp = await Interpreter.fromAsset('assets/models/yolov8n_f32.tflite');
+    final yoloInterp = await Interpreter.fromAsset('assets/models/best.tflite');
     _yoloIsolate = await IsolateInterpreter.create(address: yoloInterp.address);
 
-    final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3_lumpy_f32.tflite');
+    // final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3_lumpy_f32.tflite');
+    final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3.tflite');
     _mobileNetIsolate = await IsolateInterpreter.create(address: mobileNetInterp.address);
 
-    _labels = ['healthy', 'lumpy_skin', 'other'];
+    _labels = ["healthy_cowhide", "lumpy", "mange", "pediculosis", "ringworm",];
 
     final options = InterpreterOptions();
       // Aktifkan GPU Delegate (Android/iOS)
@@ -62,9 +64,9 @@ class CascadePipeline {
     final yoloInputImg = img.copyResize(originalImg, width: 640, height: 640);
     final yoloInputBuffer = _imageToFloat32Buffer(yoloInputImg, 640, 640);
 
-    // 3. Inference YOLOv8n (Shape [1, 5, 8400])
+    // 3. Inference YOLOv8n (Shape [1, 9, 8400])
     final yoloWatch = Stopwatch()..start();
-    var yoloOutput = List.filled(1 * 5 * 8400, 0.0).reshape([1, 5, 8400]);
+    var yoloOutput = List.filled(1 * 9 * 8400, 0.0).reshape([1, 9, 8400]);
     await _yoloIsolate!.run(yoloInputBuffer, yoloOutput);
     yoloWatch.stop();
     metrics.yoloTimeMs = yoloWatch.elapsedMilliseconds;
@@ -166,7 +168,7 @@ class CascadePipeline {
 
   List<Map<String, dynamic>> _parseYoloOutput(List<List<double>> output, int imgW, int imgH) {
     List<Map<String, dynamic>> rawBoxes = [];
-    int numChannels = output.length; // 5 kanal
+    // int numChannels = output.length; // 5 kanal
     
     // 1. Turunkan threshold awal untuk inspeksi deteksi
     double threshold = 0.01; // 

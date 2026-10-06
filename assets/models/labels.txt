@@ -1,3 +1,5 @@
-healthy
-lumpy_skin
-other
+healthy_cowhide
+lumpy
+mange
+pediculosis
+ringworm
