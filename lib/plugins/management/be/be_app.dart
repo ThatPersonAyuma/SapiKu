@@ -8,20 +8,23 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sapiku/plugins/management/utils/qr.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/file_handler.dart';
+import 'package:sapiku/utils/utils.dart';
+import 'package:sqflite/sqflite.dart';
 
 // #region Temporary
 /// Simulate setup in download plugin, used in before main
 Future<void> managementSetup() async {
   const tableName = "management";
-  // final List<Map<String, dynamic>>? schemaResult = await LocalDBHandler.runRawSelectQuery(
-  //   "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'android_%';"
-  //   ,[]
+  // final List<Map<String, dynamic>>?
+  // schemaResult = await LocalDBHandler.runRawSelectQuery(
+  //   "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'android_%';",
+  //   [],
   // );
-  // if (schemaResult != null){
-  // for (var row in schemaResult) {
-  //   print('Table: ${row['name']}');
-  //   print('Schema: ${row['sql']}\n');
-  // }
+  // if (schemaResult != null) {
+  //   for (var row in schemaResult) {
+  //     print('Table: ${row['name']}');
+  //     print('Schema: ${row['sql']}\n');
+  //   }
   // }
 
   final res = await LocalDBHandler.runRawSelectQuery(
@@ -32,9 +35,9 @@ Future<void> managementSetup() async {
   if (res.isNotEmpty) {
     if (res[0]['isSetup'] == 1) return;
   }
-  ;
-  await LocalDBHandler.runActionQuery("""
-    -- 1. Tabel product
+  final batch = LocalDBHandler.getBatch();
+  if (batch == null) return;
+  batch.execute("""
     CREATE TABLE IF NOT EXISTS ${Product.tableName} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
@@ -43,14 +46,14 @@ Future<void> managementSetup() async {
         image_path TEXT NULL,
         qr_image_path TEXT NULL
     );
-
-    -- 2. Tabel Transactions
+  """);
+  batch.execute("""
     CREATE TABLE IF NOT EXISTS ${Transaction.tableName} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-
-    -- 3. Tabel Transaction Details
+  """);
+  batch.execute("""
     CREATE TABLE IF NOT EXISTS ${TransactionDetail.tableName} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
@@ -60,6 +63,7 @@ Future<void> managementSetup() async {
         FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
     );
   """);
+  await batch.commit(noResult: true);
   if (res.isNotEmpty) {
     await LocalDBHandler.runRawUpdateQuery(
       """
@@ -135,7 +139,6 @@ class Product {
 
   /// Ensure QR is created
   Future<void> _ensureQrImage() async {
-    print("ensure");
     if (qrImagePath == null) {
       print("creating");
       final bytes = await getQrPngbyId(id);
@@ -156,8 +159,6 @@ class Product {
         saveToDb();
         print("saved");
       }
-    } else {
-      print("Failed to create qr");
     }
   }
 
@@ -284,7 +285,7 @@ class Transaction {
   Transaction(this.id, this.datetime);
 
   static Transaction createFromMap(Map<String, Object?> map) {
-    return Transaction(map["id"] as int, map["date"] as DateTime);
+    return Transaction(map["id"] as int, strToDateTime(map["datetime"] as String));
   }
 
   Map<String, Object?> toMap() {
@@ -296,6 +297,7 @@ class Transaction {
     return 'Transaction{id: $id, datetime:$datetime}';
   }
 
+  /// Get all of the transaction Data
   static Future<List<Transaction>?> getAll() async {
     final List<Map<String, Object?>>? res =
         await LocalDBHandler.runRawSelectQuery(
@@ -305,12 +307,14 @@ class Transaction {
     return [for (final map in res) Transaction.createFromMap(map)];
   }
 
+  /// Get all of the transaction detail data. This method will return list of TransactionDetails
+  /// Also will save it to the attribute of self transactionDetails
   Future<List<TransactionDetail>?> getAllTransactionDetails() async {
     final res = await LocalDBHandler.runRawSelectQuery("""
       SELECT * FROM ${TransactionDetail.tableName}
       WHERE transaction_id = $id
-      ORDER BY name;
       """);
+      // ORDER BY name;
     if (res == null) return null;
     transactionDetails = [
       for (final map in res) TransactionDetail.createFromMap(map),
@@ -327,6 +331,45 @@ class Transaction {
       [datetime],
     );
   }
+
+  static Future<Transaction?> getById(int id) async {
+    List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
+      "SELECT * FROM $tableName WHERE id=$id",
+    );
+    if (temp == null || temp.isEmpty) return null;
+    Map<String, Object?> res = temp[0];
+    return Transaction.createFromMap(res);
+  }
+
+  static Future<Transaction?> create(
+    List<TransactionDetailInsertComponent> details,
+  ) async {
+    final int? id = await LocalDBHandler.runRawInsertQuery("""
+      INSERT INTO $tableName
+      DEFAULT VALUES;
+      """, []);
+    if (id == null) return null;
+    final Batch? batch = LocalDBHandler.getBatch();
+    if (batch == null) return null;
+    for (final detail in details) {
+      batch.rawInsert(
+        """
+        INSERT INTO ${TransactionDetail.tableName}(product_id, transaction_id, quantity)
+        VALUES(?, ?, ?);
+        """,
+        [detail.productId, id, detail.quantity],
+      );
+    }
+    batch.commit(noResult: true);
+    return Transaction.getById(id);
+  }
+}
+
+class TransactionDetailInsertComponent {
+  int productId;
+  int quantity;
+
+  TransactionDetailInsertComponent(this.productId, this.quantity);
 }
 
 class TransactionDetail {
