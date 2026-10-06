@@ -12,6 +12,7 @@ class FileHandler {
         '${directory.path}/$prefix/${DateTime.now().millisecondsSinceEpoch}.png';
     final bytes = await imgFile.readAsBytes();
     final File newFile = File(filePath);
+    await newFile.parent.create(recursive: true);
     await newFile.writeAsBytes(bytes);
     if (oldImagePath != null) {
       // if image before exist, destroy

@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +13,17 @@ import 'package:sapiku/utils/file_handler.dart';
 /// Simulate setup in download plugin, used in before main
 Future<void> managementSetup() async {
   const tableName = "management";
+  // final List<Map<String, dynamic>>? schemaResult = await LocalDBHandler.runRawSelectQuery(
+  //   "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'android_%';"
+  //   ,[]
+  // );
+  // if (schemaResult != null){
+  // for (var row in schemaResult) {
+  //   print('Table: ${row['name']}');
+  //   print('Schema: ${row['sql']}\n');
+  // }
+  // }
+
   final res = await LocalDBHandler.runRawSelectQuery(
     "SELECT id, isSetup FROM plugins WHERE name = ?",
     [tableName],
@@ -65,6 +78,7 @@ Future<void> managementSetup() async {
       [tableName, true, true],
     );
   }
+  print("Success Setup");
 }
 // #endregion
 
@@ -75,25 +89,25 @@ class Product {
   static String productImgPath = "product_images";
 
   int id;
-  String productName;
+  String name;
   double price;
   int stock;
   String? imagePath;
   String? qrImagePath;
   Product(
     this.id,
-    this.productName,
+    this.name,
     this.price,
     this.stock,
     this.imagePath,
     this.qrImagePath,
   ) {
-    _ensureQrImage;
+    _ensureQrImage();
   }
   Map<String, Object?> toMap() {
     return {
       'id': id,
-      "productName": productName,
+      "name": name,
       "price": price,
       "stock": stock,
       "imagePath": imagePath,
@@ -105,13 +119,13 @@ class Product {
   // each dog when using the print statement.
   @override
   String toString() {
-    return 'Product{id: $id, productName:$productName price:$price stock:$stock imagePath: $imagePath qrImagePath: $qrImagePath}';
+    return 'Product{id: $id, name:$name price:$price stock:$stock imagePath: $imagePath qrImagePath: $qrImagePath}';
   }
 
   static Product createFromMap(Map<String, Object?> map) {
     return Product(
       map["id"] as int,
-      map["product_name"] as String,
+      map["name"] as String,
       map["price"] as double,
       map["stock"] as int,
       map["image_path"] as String?,
@@ -121,9 +135,12 @@ class Product {
 
   /// Ensure QR is created
   Future<void> _ensureQrImage() async {
+    print("ensure");
     if (qrImagePath == null) {
+      print("creating");
       final bytes = await getQrPngbyId(id);
       if (bytes != null) {
+        print("got qr");
         // 2. Dapatkan direktori penyimpanan dokumen
         final directory = await getApplicationDocumentsDirectory();
 
@@ -133,10 +150,14 @@ class Product {
 
         // 4. Buat file dan tulis bytes ke dalamnya
         final file = File(filePath);
+        await file.parent.create(recursive: true);
         await file.writeAsBytes(bytes);
         qrImagePath = file.path;
         saveToDb();
+        print("saved");
       }
+    } else {
+      print("Failed to create qr");
     }
   }
 
@@ -144,6 +165,17 @@ class Product {
   static Future<Product?> getById(int id) async {
     List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
       "SELECT * FROM $tableName WHERE id=$id",
+    );
+    if (temp == null || temp.isEmpty) return null;
+    Map<String, Object?> res = temp[0];
+    return Product.createFromMap(res);
+  }
+
+  /// Get Product by name, return none if id didnt exist or db is not setup properly
+  static Future<Product?> getByName(String name) async {
+    List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
+      "SELECT * FROM $tableName WHERE name LIKE ?",
+      [name],
     );
     if (temp == null || temp.isEmpty) return null;
     Map<String, Object?> res = temp[0];
@@ -163,14 +195,14 @@ class Product {
   /// Create a Product isntance and insert it to the database.
   /// Return product fi success otherwise null
   static Future<Product?> create(
-    String productName,
+    String name,
     double price,
     int stock,
     XFile? imgFile,
   ) async {
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id FROM $tableName WHERE name = ?",
-      [productName],
+      [name],
     );
     // Show error product has same name
     if (res != null && res.isNotEmpty) return null;
@@ -178,18 +210,18 @@ class Product {
         ? (await FileHandler.storeImage(productImgPath, imgFile, null))
         : null;
     int? id = await LocalDBHandler.runRawInsertQuery(
-      "INSERT INTO $tableName(product_name, price, stock, image_path) VALUES(?, ?, ?, ?)",
-      [productName, price, stock, imgPath],
+      "INSERT INTO $tableName(name, price, stock, image_path) VALUES(?, ?, ?, ?)",
+      [name, price, stock, imgPath],
     );
     if (id == null) return null;
-    return Product(id, productName, price, stock, imgPath, null);
+    return Product(id, name, price, stock, imgPath, null);
   }
 
   /// Save current Product, return int of count if success otherwise null
   Future<int?> saveToDb() async {
     return await LocalDBHandler.runRawUpdateQuery(
-      "UPDATE $tableName SET product_name = ?, price = ?, stock = ?, image_path = ?, qr_image_path = ? WHERE id = ?;",
-      [productName, price, stock, imagePath, qrImagePath, id],
+      "UPDATE $tableName SET name = ?, price = ?, stock = ?, image_path = ?, qr_image_path = ? WHERE id = ?;",
+      [name, price, stock, imagePath, qrImagePath, id],
     );
   }
 
@@ -209,8 +241,10 @@ class Product {
         }
       }
       if (qrImagePath == null) _ensureQrImage();
+      if (qrImagePath == null) return false;
       final img = File(qrImagePath!);
       if (!img.existsSync()) {
+        print("file doesnt exist");
         return false;
       }
       final bytes = img.readAsBytesSync();
@@ -225,6 +259,18 @@ class Product {
       debugPrint('Save QR error: $e');
       return false;
     }
+  }
+
+  /// Open qr scan and scan the qr. Return Product if qr scanned succesfully.
+  /// Otherwise return null. This can happen if qr scan failed or product with that id didn't exist
+  static Future<Product?> getFromQr(BuildContext ctx) async {
+    final int? id = await Navigator.push(
+      ctx,
+      MaterialPageRoute<int>(builder: (context) => const QRScannerPage()),
+    );
+    // Error on read qr
+    if (id == null) return null;
+    return await Product.getById(id);
   }
 }
 
@@ -252,7 +298,9 @@ class Transaction {
 
   static Future<List<Transaction>?> getAll() async {
     final List<Map<String, Object?>>? res =
-        await LocalDBHandler.runRawSelectQuery("SELECT * FROM $tableName;");
+        await LocalDBHandler.runRawSelectQuery(
+          "SELECT * FROM $tableName ORDER BY datetime DESC;",
+        );
     if (res == null) return null;
     return [for (final map in res) Transaction.createFromMap(map)];
   }
@@ -260,7 +308,8 @@ class Transaction {
   Future<List<TransactionDetail>?> getAllTransactionDetails() async {
     final res = await LocalDBHandler.runRawSelectQuery("""
       SELECT * FROM ${TransactionDetail.tableName}
-      WHERE transaction_id = $id;
+      WHERE transaction_id = $id
+      ORDER BY name;
       """);
     if (res == null) return null;
     transactionDetails = [
@@ -327,70 +376,3 @@ class TransactionDetail {
 }
 
 // #endregion
-
-// -- Aktifkan dukungan Foreign Key di SQLite/SQFlite
-// PRAGMA foreign_keys = ON;
-
-// -- 1. Tabel Produk
-// CREATE TABLE IF NOT EXISTS produk (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     name TEXT NOT NULL UNIQUE,
-//     price REAL NOT NULL,
-//     stock INTEGER DEFAULT 0,
-//     image_path TEXT NULL,
-//     qr_image_path TEXT NOT NULL
-// );
-
-// -- 2. Tabel Transactions
-// CREATE TABLE IF NOT EXISTS transactions (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-// );
-
-// -- 3. Tabel Transaction Details
-// CREATE TABLE IF NOT EXISTS transaction_details (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     product_id INTEGER NOT NULL,
-//     transaction_id INTEGER NOT NULL,
-//     quantity INTEGER NOT NULL,
-//     FOREIGN KEY (product_id) REFERENCES produk(id) ON DELETE RESTRICT,
-//     FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
-// );
-
-// -- 4. Tabel Penyakit
-// CREATE TABLE IF NOT EXISTS penyakit (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     name TEXT UNIQUE,
-//     solution TEXT NOT NULL
-// );
-
-// -- 5. Tabel Deteksi Penyakit
-// CREATE TABLE IF NOT EXISTS deteksi_penyakit (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     name TEXT NOT NULL,
-//     datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-//     image_path TEXT NOT NULL
-// );
-
-// -- 6. Tabel Scan
-// CREATE TABLE IF NOT EXISTS scan (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     label_id INTEGER NOT NULL,
-//     detection_id INTEGER NOT NULL,
-//     x_center REAL NOT NULL,
-//     y_center REAL NOT NULL,
-//     width REAL NOT NULL,
-//     height REAL NOT NULL,
-//     result TEXT NOT NULL,
-//     confidence REAL NOT NULL,
-//     FOREIGN KEY (label_id) REFERENCES penyakit(id) ON DELETE RESTRICT,
-//     FOREIGN KEY (detection_id) REFERENCES deteksi_penyakit(id) ON DELETE CASCADE
-// );
-
-// -- 7. Tabel Plugins
-// CREATE TABLE IF NOT EXISTS plugins (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     name TEXT NOT NULL,
-//     isSetup INTEGER DEFAULT 0,
-//     isActive INTEGER DEFAULT 0
-// );

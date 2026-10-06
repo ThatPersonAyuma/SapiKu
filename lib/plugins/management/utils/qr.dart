@@ -28,19 +28,29 @@ Widget buildQRImage(String idStr) {
   );
 }
 
-Future<Uint8List?> getQrPngbyId(int id) async {
+Future getQrPngbyId(int id) async {
   try {
     final painter = QrPainter(
       data: id.toRadixString(36).toUpperCase(),
-      version: 1,
+      version: QrVersions.auto,
       errorCorrectionLevel: QrErrorCorrectLevel.M,
-      gapless: false,
+      
+      // 1. AKTIFKAN GAPLESS RENDERING
+      gapless: true, // Menghilangkan celah dan garis pemisah antar modul
+
+      // 2. ATUR WARNA LATAR BELAKANG KE PUTIH
+      emptyColor: const Color(0xFFFFFFFF), // Latar belakang putih solid
+
+      dataModuleStyle: const QrDataModuleStyle(
+        dataModuleShape: QrDataModuleShape.square,
+        color: Color(0xFF000000), // Warna modul hitam
+      ),
       eyeStyle: const QrEyeStyle(
-        color: Color(0xFF000000)
+        eyeShape: QrEyeShape.square,
+        color: Color(0xFF000000), // Warna mata hitam solid
       ),
     );
 
-    // Render ke bentuk Image dengan ukuran tertentu (misal: 300x300)
     final byteData = await painter.toImageData(
       300.0,
       format: ui.ImageByteFormat.png,
@@ -52,7 +62,6 @@ Future<Uint8List?> getQrPngbyId(int id) async {
     return null;
   }
 }
-
 
 Future<Uint8List?> getQrPng() async {
   final boundary =
@@ -124,10 +133,10 @@ class QRScannerPage extends StatefulWidget {
 
 class _QRScannerPageState extends State<QRScannerPage> {
   bool _isProcessing = false;
-
+  
   void _onDetect(BarcodeCapture capture) {
     if (_isProcessing || capture.barcodes.isEmpty) return;
-
+    
     final rawValue = capture.barcodes.first.rawValue;
     final id = convertIdScanned(rawValue);
 

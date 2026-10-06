@@ -10,6 +10,7 @@ class LocalDBHandler {
 
   /// Create a LocalDBHandler and open the database connection
   static Future<LocalDBHandler> setup() async {
+    // databaseFactory.deleteDatabase(join(await getDatabasesPath(), 'sapiku.db'));
     LocalDBHandler.db = await _localSetup();
     // final columns = await LocalDBHandler.runRawSelectQuery("PRAGMA table_info(plugins);", []);
     // print("Struktur kolom: $columns");
