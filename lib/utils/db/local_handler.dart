@@ -32,8 +32,9 @@ class LocalDBHandler {
     );
   }
 
-  /// Run Query String that doesn't return anything
-  /// Call it action query
+  /// Run Query String that doesn't return anything.
+  /// Only run single execution, indicate by ';'.
+  /// Call it action query.
   static Future<void> runActionQuery(
     String query, [
     List<Object?>? arguments,
