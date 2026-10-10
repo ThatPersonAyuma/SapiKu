@@ -92,6 +92,9 @@ flutter:
     - family: CustomIcons
       fonts:
         - asset: assets/icons/CustomIcons.ttf
+    - family: CustomIconsTwo
+      fonts:
+        - asset: assets/icons/CustomIconsTwo.ttf
     - family: Poppins
       fonts:
         - asset: assets/fonts/Poppins-Regular.ttf
