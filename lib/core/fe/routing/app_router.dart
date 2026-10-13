@@ -39,15 +39,10 @@ class AppRouter {
       case managementPenjualanDetail:
         {
           final args = s.arguments as Map<String, dynamic>?;
-          if (args != null) {
-            final raw = args['items'] as List;
-            final items = raw.map<({String name, int qty, String price})>((e) {
-              if (e is Map) return (name: e['name'] as String, qty: e['qty'] as int, price: e['price'] as String);
-              return e as ({String name, int qty, String price});
-            }).toList();
-            return _slide(PenjualanDetailPage(timeLabel: args['time'] as String, items: items, totalLabel: args['total'] as String), s);
+          if (args != null && args['transaction'] != null) {
+            return _slide(PenjualanDetailPage(transaction: args['transaction']), s);
           }
-          return _slide(const PenjualanDetailPage(timeLabel: '10:30 - 12 Januari 2025', items: [(name: 'Susu Segar 1L', qty: 2, price: 'Rp 30.000')], totalLabel: 'Rp 30.000'), s);
+          return _slide(const Scaffold(body: Center(child: Text('Data transaksi tidak ditemukan'))), s);
         }
       case managementPenjualanTambah:
         return _slide(const PenjualanTambahPage(), s);

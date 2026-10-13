@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:sapiku/core/fe/theme/app_colors.dart';
 
 class PenjualanCard extends StatelessWidget {
+  final String idLabel;
   final String timeLabel;
   final String totalLabel;
   final VoidCallback? onDetailTap;
-  const PenjualanCard({super.key, required this.timeLabel, required this.totalLabel, this.onDetailTap});
+  const PenjualanCard({super.key, required this.idLabel, required this.timeLabel, required this.totalLabel, this.onDetailTap});
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +28,12 @@ class PenjualanCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(timeLabel, style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(idLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black87)),
+                          Text(timeLabel, style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500)),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Row(
