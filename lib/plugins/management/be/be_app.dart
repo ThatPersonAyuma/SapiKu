@@ -411,7 +411,7 @@ class TransactionDetail {
     return await LocalDBHandler.runRawUpdateQuery(
       """
       UPDATE $tableName 
-      SET product_id = ?, transaction_id = ?, quanity = ?;
+      SET product_id = ?, transaction_id = ?, quantity = ?;
       """,
       [productId, transactionId, quantity],
     );
