@@ -86,13 +86,13 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
   }
 
   Future<void> _handleScanQr() async {
-    final raw = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const _QrDummyScannerPage()));
-    if (raw == null || !mounted) return;
-    final id = convertIdScanned(raw);
-    if (id == null) return;
-    final product = await Product.getById(id);
+    final product = await Product.getFromQr(context);
     if (!mounted) return;
-    if (product != null) _showQrQtyDialog(product: product);
+    if (product == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('QR tidak valid atau produk tidak ditemukan')));
+      return;
+    }
+    _showQrQtyDialog(product: product);
   }
 
   Future<void> _handleGalleryQr() async {
@@ -103,14 +103,27 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
       final capture = await controller.analyzeImage(xfile.path);
       controller.dispose();
       if (!mounted) return;
-      if (capture == null || capture.barcodes.isEmpty) return;
+      if (capture == null || capture.barcodes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('QR tidak terdeteksi di gambar')));
+        return;
+      }
       final raw = capture.barcodes.first.rawValue;
       final id = convertIdScanned(raw);
-      if (id == null) return;
+      if (id == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('QR tidak valid')));
+        return;
+      }
       final product = await Product.getById(id);
       if (!mounted) return;
-      if (product != null) _showQrQtyDialog(product: product);
-    } catch (_) {}
+      if (product == null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Produk ID #$id tidak ditemukan')));
+        return;
+      }
+      _showQrQtyDialog(product: product);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal baca QR galeri: $e')));
+    }
   }
 
   void _showQrQtyDialog({required Product product}) {
@@ -300,21 +313,4 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
   }
 }
 
-class _QrDummyScannerPage extends StatefulWidget {
-  const _QrDummyScannerPage();
-  @override
-  State<_QrDummyScannerPage> createState() => _QrDummyScannerPageState();
-}
 
-class _QrDummyScannerPageState extends State<_QrDummyScannerPage> {
-  bool _done = false;
-  void _onDetect(BarcodeCapture c) {
-    if (_done || c.barcodes.isEmpty) return;
-    _done = true;
-    Navigator.pop(context, c.barcodes.first.rawValue ?? '');
-  }
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text('Scan QR')), body: MobileScanner(controller: MobileScannerController(formats: const [BarcodeFormat.qrCode]), onDetect: _onDetect));
-  }
-}
