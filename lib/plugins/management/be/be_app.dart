@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +11,7 @@ import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/file_handler.dart';
 import 'package:sapiku/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 
 // #region Temporary
 /// Simulate setup in download plugin, used in before main
@@ -59,8 +61,8 @@ Future<void> managementSetup() async {
         product_id INTEGER NOT NULL,
         transaction_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
-        FOREIGN KEY (product_id) REFERENCES produk(id) ON DELETE RESTRICT,
-        FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+        FOREIGN KEY (product_id) REFERENCES ${Product.tableName}(id) ON DELETE RESTRICT,
+        FOREIGN KEY (transaction_id) REFERENCES ${Transaction.tableName}(id) ON DELETE CASCADE
     );
   """);
   await batch.commit(noResult: true);
@@ -83,6 +85,25 @@ Future<void> managementSetup() async {
     );
   }
   print("Success Setup");
+}
+
+Future<void> manageTest() async {
+  // Transaction.create(
+  //   [TransactionDetailInsertComponent(2, 2)],
+  //   date: DateTime(2017, 9, 7, 17, 30)
+  // );
+  // Transaction.create(
+  //   [TransactionDetailInsertComponent(2, 2)]
+  // );
+  final res = await LocalDBHandler.runRawSelectQuery(
+    "SELECT * FROM ${TransactionDetail.tableName}",
+  );
+  print("Transaction detail:\n$res");
+  final res2 = await LocalDBHandler.runRawSelectQuery(
+    "SELECT * FROM ${Transaction.tableName}",
+  );
+  print("Transaction detail:\n$res2");
+  ManageUtils.saveReport(DateTime(2016, 9, 7, 17, 0).toUtc(), DateTime.now());
 }
 // #endregion
 
@@ -273,6 +294,22 @@ class Product {
     if (id == null) return null;
     return await Product.getById(id);
   }
+
+  /// Delete a record by given id
+  static Future<void> destroyById(int id) async {
+    return await LocalDBHandler.runActionQuery(
+      "DELETE FROM $tableName WHERE id=?",
+      [id],
+    );
+  }
+
+  /// Delete self from local database. Note this is not destroy the instance but only delete from the local database
+  Future<void> destroy() async {
+    return await LocalDBHandler.runActionQuery(
+      "DELETE FROM $tableName WHERE id=?",
+      [id],
+    );
+  }
 }
 
 class Transaction {
@@ -285,7 +322,10 @@ class Transaction {
   Transaction(this.id, this.datetime);
 
   static Transaction createFromMap(Map<String, Object?> map) {
-    return Transaction(map["id"] as int, strToDateTime(map["datetime"] as String));
+    return Transaction(
+      map["id"] as int,
+      strToDateTime(map["datetime"] as String),
+    );
   }
 
   Map<String, Object?> toMap() {
@@ -314,7 +354,7 @@ class Transaction {
       SELECT * FROM ${TransactionDetail.tableName}
       WHERE transaction_id = $id
       """);
-      // ORDER BY name;
+    // ORDER BY name;
     if (res == null) return null;
     transactionDetails = [
       for (final map in res) TransactionDetail.createFromMap(map),
@@ -342,13 +382,52 @@ class Transaction {
   }
 
   static Future<Transaction?> create(
-    List<TransactionDetailInsertComponent> details,
-  ) async {
-    final int? id = await LocalDBHandler.runRawInsertQuery("""
-      INSERT INTO $tableName
-      DEFAULT VALUES;
-      """, []);
+    List<TransactionDetailInsertComponent> details, {
+    DateTime? date,
+  }) async {
+    int? id;
+    if (date == null) {
+      id = await LocalDBHandler.runRawInsertQuery("""
+        INSERT INTO $tableName
+        DEFAULT VALUES;
+        """, []);
+    } else {
+      id = await LocalDBHandler.runRawInsertQuery(
+        """
+        INSERT INTO $tableName(datetime)
+        VALUES(datetime(?));
+        """,
+        [date.toUtc().toIso8601String()],
+      );
+    }
     if (id == null) return null;
+    List<int> targetIds = [for (final detail in details) detail.productId];
+
+    // Membuat placeholder '?, ?, ?' sesuai jumlah isi List
+    String placeholders = List.filled(targetIds.length, '?').join(',');
+    final List<Map<String, Object?>>? res =
+        await LocalDBHandler.runRawSelectQuery(
+          'SELECT * FROM ${Product.tableName} WHERE id IN ($placeholders)',
+          targetIds,
+        );
+    if (res == null) return null;
+    final List<Product> products = [
+      for (final map in res) Product.createFromMap(map),
+    ];
+    // Check if quantity meet demand
+    for (final detail in details) {
+      final Product? p = products
+          .where((p) => p.id == detail.productId)
+          .firstOrNull;
+      if (p == null) return null;
+      if (detail.quantity <= p.stock) {
+        p.stock -= detail.quantity;
+        p.saveToDb(); // This should be batch in the end consider to change into sql update string rather than execute one to avoid changing while there would be an error
+      } else {
+        return null;
+      }
+    }
+
     final Batch? batch = LocalDBHandler.getBatch();
     if (batch == null) return null;
     for (final detail in details) {
@@ -362,6 +441,72 @@ class Transaction {
     }
     batch.commit(noResult: true);
     return Transaction.getById(id);
+  }
+
+  /// Delete a record by given id
+  static Future<void> destroyById(int id) async {
+    return await LocalDBHandler.runActionQuery(
+      "DELETE FROM $tableName WHERE id=?",
+      [id],
+    );
+  }
+
+  /// Delete self from local database. Note this is not destroy the instance but only delete from the local database
+  Future<void> destroy() async {
+    return await LocalDBHandler.runActionQuery(
+      "DELETE FROM $tableName WHERE id=?",
+      [id],
+    );
+  }
+
+  /// Get all transaction and its transaction detail needed for transaction report
+  static Future<List<Map<String, Object?>>?> getAllTransactionAndDetails(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final List<Map<String, Object?>>? res =
+        await LocalDBHandler.runRawSelectQuery(
+          """
+      SELECT 
+        t.id AS transaction_id,
+        t.datetime, 
+        td.id AS detail_id,
+        td.product_id,
+        td.quantity,
+        c.name AS product_name,
+        c.price AS price,
+        (td.quantity * COALESCE(c.price, 0.0)) AS total_item_price
+      FROM $tableName t
+      INNER JOIN ${TransactionDetail.tableName} td
+        ON t.id = td.transaction_id
+      INNER JOIN ${Product.tableName} c
+        ON c.id = td.product_id
+      WHERE datetime(t.datetime) >= datetime(?) 
+        AND datetime(t.datetime) <= datetime(?)
+      ORDER BY t.datetime ASC;
+      """,
+          [start.toIso8601String(), end.toIso8601String()],
+        );
+    print("res:\n$res");
+    return res;
+  }
+}
+
+class ReportRecord {
+  DateTime date;
+  double totalPrice;
+
+  ReportRecord(this.date, this.totalPrice);
+
+  static ReportRecord createFromMap(Map<String, Object?> map) {
+    return ReportRecord(
+      strToDateTime((map["datetime"] as String)),
+      map["total_price"] as double,
+    );
+  }
+
+  static List<ReportRecord> createFromListMap(List<Map<String, Object?>> data) {
+    return [for (final map in data) ReportRecord.createFromMap(map)];
   }
 }
 
@@ -415,6 +560,75 @@ class TransactionDetail {
       """,
       [productId, transactionId, quantity],
     );
+  }
+}
+
+// #endregion
+
+// #region Utils
+/// Class to access utils method for management feature
+class ManageUtils {
+  static const _cloudPwKey = "cloudPwKey";
+  static const _reportDir = "reports";
+
+  static final FlutterSecureStorage _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(),
+  );
+
+  /// Set cloud PW and store it in secure storage
+  static Future<void> setCloudSyncPw(String pw) async {
+    await _storage.write(key: _cloudPwKey, value: pw);
+  }
+
+  /// Get the cloud PW string, return null if not set
+  static Future<String?> getCloudSyncPw() async {
+    return _storage.read(key: _cloudPwKey);
+  }
+
+  /// Get List of ReportRecord to show the report of transaction/sell.
+  /// Return null if error
+  static Future<List<ReportRecord>?> createReport(
+    DateTime start,
+    DateTime end,
+  ) async {
+    start = start.toUtc();
+    end = end.toUtc();
+    final res = await Transaction.getAllTransactionAndDetails(start, end);
+    if (res == null) return null;
+    return ReportRecord.createFromListMap(res);
+  }
+
+  static List<String> _columnNames = ["Waktu", "Total"];
+
+  /// Cretae excel and save report on it. It sgould be saved in download directory.
+  /// Pass the reportDara if you have list of ReportRecord to avoid calling createReport twice.
+  /// Return true if success, otherwise false
+  static Future<bool> saveReport(
+    DateTime start,
+    DateTime end, {
+    List<ReportRecord>? reportData,
+  }) async {
+    final filePath = '${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
+
+    reportData ??= await createReport(start, end);
+    if (reportData == null) return false;
+    final Workbook wb = Workbook();
+
+    final Worksheet sheet1 = wb.worksheets[0];
+    sheet1.getRangeByIndex(1, 1).setText(_columnNames[0]);
+    sheet1.getRangeByIndex(1, 2).setText(_columnNames[1]);
+    int ri = 1;
+    for (final record in reportData) {
+      ++ri;
+      sheet1.getRangeByIndex(ri, 1).setDateTime(record.date);
+      sheet1.getRangeByIndex(ri, 2).setNumber(record.totalPrice);
+    }
+    FileHandler.saveFileWithPicker(
+      bytes: wb.saveAsStream(),
+      fileName: filePath,
+    );
+    wb.dispose();
+    return true;
   }
 }
 

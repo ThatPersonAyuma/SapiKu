@@ -14,6 +14,7 @@ Future<void> main() async {
   await test();
   await LocalDBHandler.setup();
   await managementSetup();
+  await manageTest();
   // #endregion
 
   runApp(const MyApp());

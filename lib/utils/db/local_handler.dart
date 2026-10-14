@@ -10,7 +10,7 @@ class LocalDBHandler {
 
   /// Create a LocalDBHandler and open the database connection
   static Future<LocalDBHandler> setup() async {
-    // databaseFactory.deleteDatabase(join(await getDatabasesPath(), 'sapiku.db'));
+    databaseFactory.deleteDatabase(join(await getDatabasesPath(), 'sapiku.db'));
     LocalDBHandler.db = await _localSetup();
     // final columns = await LocalDBHandler.runRawSelectQuery("PRAGMA table_info(plugins);", []);
     // print("Struktur kolom: $columns");
@@ -22,9 +22,12 @@ class LocalDBHandler {
     return await openDatabase(
       join(await getDatabasesPath(), 'sapiku.db'),
       version: 1,
+      onConfigure: (db) async {
+        // Wajib diaktifkan di sini agar berlaku untuk setiap koneksi
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: (db, version) {
         // Create Config/Default table
-
         return db.execute(
           'CREATE TABLE plugins(id INTEGER PRIMARY KEY, name TEXT, isSetup BOOL DEFAULT FALSE, isActive BOOL DEFAULT FALSE)',
         );
