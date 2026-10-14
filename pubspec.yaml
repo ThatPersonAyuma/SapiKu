@@ -47,6 +47,9 @@ dependencies:
   dio: ^5.11.1
   sqflite: ^2.4.2+1
   path: ^1.9.1
+  syncfusion_flutter_xlsio: ^35.1.39
+  flutter_secure_storage: ^11.2.0
+  flutter_file_dialog: ^3.0.3
 
 dev_dependencies:
   flutter_test:
