@@ -460,6 +460,7 @@ class Transaction {
   }
 
   /// Get all transaction and its transaction detail needed for transaction report
+  /// The detail needed is transaction static and product static
   static Future<List<Map<String, Object?>>?> getAllTransactionAndDetails(
     DateTime start,
     DateTime end,
@@ -492,6 +493,13 @@ class Transaction {
   }
 }
 
+class ProductReport {
+  String name;
+  int selledQuantity;
+
+  ProductReport(this.name, this.selledQuantity);
+}
+
 class ReportRecord {
   DateTime date;
   double totalPrice;
@@ -506,6 +514,7 @@ class ReportRecord {
   }
 
   static List<ReportRecord> createFromListMap(List<Map<String, Object?>> data) {
+    // Need to create two type of data
     return [for (final map in data) ReportRecord.createFromMap(map)];
   }
 }
@@ -588,7 +597,7 @@ class ManageUtils {
   /// Get List of ReportRecord to show the report of transaction/sell.
   /// Return null if error
   static Future<List<ReportRecord>?> createReport(
-    DateTime start,
+    DateTime start, // Add end
     DateTime end,
   ) async {
     start = start.toUtc();
