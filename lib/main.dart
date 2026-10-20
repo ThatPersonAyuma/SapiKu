@@ -14,7 +14,7 @@ Future<void> main() async {
   await test();
   await LocalDBHandler.setup();
   await managementSetup();
-  await manageTest();
+  // await manageTest();
   // #endregion
 
   runApp(const MyApp());
@@ -28,9 +28,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SapiKu',
       theme: ThemeData(useMaterial3: true, fontFamily: 'Poppins'),
-      home: DatabaseTestScreen(),
-      // initialRoute: AppRouter.home,
-      // onGenerateRoute: AppRouter.onGenerateRoute,
+      // home: DatabaseTestScreen(),
+      initialRoute: AppRouter.home,
+      onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }
 }

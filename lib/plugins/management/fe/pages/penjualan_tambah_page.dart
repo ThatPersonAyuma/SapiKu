@@ -69,13 +69,16 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
     }
     setState(() => _isSaving = true);
     try {
-      final tx = await Transaction.create([for (final it in _items) TransactionDetailInsertComponent(it.product.id, it.qty)]);
+      final tx = await Transaction.create(
+        [for (final it in _items) TransactionDetailInsertComponent(it.product.id, it.qty)],
+        date: _date,
+      );
       if (!mounted) return;
       if (tx != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Penjualan #${tx.id} berhasil disimpan')));
         Navigator.pop(context, true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal menyimpan penjualan')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal menyimpan penjualan — cek stok produk')));
       }
     } catch (e) {
       if (!mounted) return;

@@ -397,7 +397,7 @@ class Transaction {
         INSERT INTO $tableName(datetime)
         VALUES(datetime(?));
         """,
-        [date.toUtc().toIso8601String()],
+        [date.toIso8601String()],
       );
     }
     if (id == null) return null;
