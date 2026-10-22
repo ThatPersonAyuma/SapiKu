@@ -10,7 +10,7 @@ class LocalDBHandler {
 
   /// Create a LocalDBHandler and open the database connection
   static Future<LocalDBHandler> setup() async {
-    // databaseFactory.deleteDatabase(join(await getDatabasesPath(), 'sapiku.db'));
+    databaseFactory.deleteDatabase(join(await getDatabasesPath(), 'sapiku.db'));
     LocalDBHandler.db = await _localSetup();
     // final columns = await LocalDBHandler.runRawSelectQuery("PRAGMA table_info(plugins);", []);
     // print("Struktur kolom: $columns");
@@ -28,8 +28,9 @@ class LocalDBHandler {
       },
       onCreate: (db, version) {
         // Create Config/Default table
+
         return db.execute(
-          'CREATE TABLE plugins(id INTEGER PRIMARY KEY, name TEXT, isSetup BOOL DEFAULT FALSE, isActive BOOL DEFAULT FALSE)',
+          'CREATE TABLE ${Plugin.tableName}(id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, is_setup BOOL DEFAULT FALSE, is_active BOOL DEFAULT FALSE)',
         );
       },
     );
@@ -105,5 +106,31 @@ class LocalDBHandler {
     } else {
       return db!.batch();
     }
+  }
+}
+
+class Plugin {
+  static const tableName = "plugins";
+  int id;
+  String name;
+  bool isSetup;
+  bool isActive;
+
+  Plugin(this.id, this.name, this.isSetup, this.isActive);
+
+  static Plugin createFromMap(Map<String, Object?> map) {
+    return Plugin(
+      map['id'] as int,
+      map['name'] as String,
+      map['is_setup'] as bool,
+      map['is_active'] as bool,
+    );
+  }
+
+  Future<int?> saveToDb() async {
+    return await LocalDBHandler.runRawUpdateQuery(
+      "UPDATE $tableName SET name = ?, is_setup = ?, is_active = ? WHERE id = ?;",
+      [name, isSetup, isActive, id],
+    );
   }
 }

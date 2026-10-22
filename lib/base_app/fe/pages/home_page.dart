@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sapiku/base_app/be/app.dart';
 import 'package:sapiku/base_app/fe/widgets/plugin_card.dart';
 import 'package:sapiku/core/fe/utils/custom_icons.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
@@ -7,11 +8,13 @@ import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
-
+  
+  /// The plugin in the base itself need a function to check
+  /// if its already setup or not. Therefore add a function to do that, call it setup
   static const _plugins = [
-    (title: 'Unduh Plugin', subtitle: 'Unduh plugin baru', route: '/plugin-list-download', icon: CustomIcons.at_icons_plug, subIcon: CustomIcons.fluent_plug_connected_32_filled),
-    (title: 'Pencatatan', subtitle: 'Fitur pencatatan penjualan produk', route: '/management', icon: CustomIcons.basil_book_solid, subIcon: CustomIcons.reicon_pen_square_filled),
-    (title: 'Deteksi Penyakit', subtitle: 'Fitur deteksi penyakit kulit sapi', route: '/detection', icon: CustomIcons.griddy_icons_cow_filled, subIcon: CustomIcons.fa7_solid_cow),
+    // (title: 'Unduh Plugin', subtitle: 'Unduh plugin baru', route: '/plugin-list-download', icon: CustomIcons.at_icons_plug, subIcon: CustomIcons.fluent_plug_connected_32_filled),
+    (title: 'Pencatatan', subtitle: 'Fitur pencatatan penjualan produk', route: '/management', icon: CustomIcons.basil_book_solid, subIcon: CustomIcons.reicon_pen_square_filled, onTap: PluginHandler.onManagementPlugin),
+    (title: 'Deteksi Penyakit', subtitle: 'Fitur deteksi penyakit kulit sapi', route: '/detection', icon: CustomIcons.griddy_icons_cow_filled, subIcon: CustomIcons.fa7_solid_cow, onTap: null),
   ];
 
   @override
@@ -26,7 +29,7 @@ class HomePage extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (_, i) {
             final p = _plugins[i];
-            return PluginCard(title: p.title, subtitle: p.subtitle, route: p.route, icon: p.icon, subIcon: p.subIcon);
+            return PluginCard(title: p.title, subtitle: p.subtitle, route: p.route, icon: p.icon, subIcon: p.subIcon, onTap: p.onTap);
           },
         ),
       ),

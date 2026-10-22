@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/core/fe/theme/app_colors.dart';
 
+typedef PluginCallback = void Function(BuildContext, String);
+
 class PluginCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String route;
   final IconData icon;
   final IconData subIcon;
-  final VoidCallback? onTap;
+  final PluginCallback? onTap;
   const PluginCard({
     super.key,
     required this.title,
@@ -20,7 +22,8 @@ class PluginCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void handleTap() => onTap != null ? onTap!() : Navigator.pushNamed(context, route);
+    void handleTap() =>
+        onTap != null ? onTap!(context, route) : Navigator.pushNamed(context, route);
     return Card(
       color: Colors.white,
       elevation: 0,
@@ -48,7 +51,10 @@ class PluginCard extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 5),
                           child: Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(color: AppColors.darkCard, borderRadius: BorderRadius.circular(10)),
+                            decoration: BoxDecoration(
+                              color: AppColors.darkCard,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                             child: Icon(icon, size: 26, color: Colors.white),
                           ),
                         ),
@@ -58,9 +64,22 @@ class PluginCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
                               const SizedBox(height: 2),
-                              Text(subtitle, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                              Text(
+                                subtitle,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -74,12 +93,21 @@ class PluginCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.greyAction,
                     borderRadius: BorderRadius.circular(15),
-                    boxShadow: const [BoxShadow(color: AppColors.shadowGrey, offset: Offset(0, 10), blurRadius: 0)],
+                    boxShadow: const [
+                      BoxShadow(
+                        color: AppColors.shadowGrey,
+                        offset: Offset(0, 10),
+                        blurRadius: 0,
+                      ),
+                    ],
                   ),
                   padding: const EdgeInsets.all(14),
                   child: Container(
                     padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Icon(subIcon, size: 38, color: AppColors.darkCard),
                   ),
                 ),

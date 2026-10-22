@@ -7,52 +7,95 @@ import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sapiku/plugins/management/utils/qr.dart';
+import 'package:sapiku/utils/cloudinary_handler.dart';
+import 'package:sapiku/utils/db/cloud_handler.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/file_handler.dart';
 import 'package:sapiku/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 
+// final List<Map<String, dynamic>>?
+// schemaResult = await LocalDBHandler.runRawSelectQuery(
+//   "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'android_%';",
+//   [],
+// );
+// if (schemaResult != null) {
+//   for (var row in schemaResult) {
+//     print('Table: ${row['name']}');
+//     print('Schema: ${row['sql']}\n');
+//   }
+// }
 // #region Temporary
 /// Simulate setup in download plugin, used in before main
-Future<void> managementSetup() async {
-  const tableName = "management";
-  // final List<Map<String, dynamic>>?
-  // schemaResult = await LocalDBHandler.runRawSelectQuery(
-  //   "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'android_%';",
-  //   [],
-  // );
-  // if (schemaResult != null) {
-  //   for (var row in schemaResult) {
-  //     print('Table: ${row['name']}');
-  //     print('Schema: ${row['sql']}\n');
-  //   }
-  // }
-
+const managementName = "management";
+Future<bool> managementSetup() async {
   final res = await LocalDBHandler.runRawSelectQuery(
-    "SELECT id, isSetup FROM plugins WHERE name = ?",
-    [tableName],
+    "SELECT id, is_setup FROM plugins WHERE name = ?",
+    [managementName],
   );
-  if (res == null) return;
+  if (res == null) return false;
   if (res.isNotEmpty) {
-    if (res[0]['isSetup'] == 1) return;
+    if (res[0]['is_setup'] == 1) return true;
   }
+
   final batch = LocalDBHandler.getBatch();
-  if (batch == null) return;
+  if (batch == null) return false;
+
+  await managementCreateTables(batch);
+
+  await managementSeeder(batch);
+
+  await batch.commit(noResult: true);
+  if (res.isNotEmpty) {
+    await LocalDBHandler.runRawUpdateQuery(
+      """
+      UPDATE plugins
+      SET is_setup = ?, is_active = ?
+      WHERE id = ?;
+      """,
+      [true, true, res[0]['id']],
+    );
+  } else {
+    await LocalDBHandler.runRawInsertQuery(
+      """
+      INSERT INTO plugins (name, is_setup, is_active)
+      values (?, ?, ?);
+      """,
+      [managementName, true, true],
+    );
+  }
+  print("Success Setup");
+  return true;
+}
+
+Future<void> managementCreateTables(Batch batch) async {
   batch.execute("""
     CREATE TABLE IF NOT EXISTS ${Product.tableName} (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        price REAL NOT NULL,
-        stock INTEGER DEFAULT 0,
-        image_path TEXT NULL,
-        qr_image_path TEXT NULL
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      price REAL NOT NULL,
+      stock INTEGER NOT NULL DEFAULT 0,
+      image_path TEXT,
+      qr_image_path TEXT,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+  """);
+  batch.execute("""
+    CREATE TRIGGER IF NOT EXISTS update_timestamp
+    AFTER UPDATE ON ${Product.tableName}
+    BEGIN
+        UPDATE ${Product.tableName} 
+        SET updated_at = CURRENT_TIMESTAMP 
+        WHERE id = OLD.id;
+    END;
   """);
   batch.execute("""
     CREATE TABLE IF NOT EXISTS ${Transaction.tableName} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   """);
   batch.execute("""
@@ -65,26 +108,105 @@ Future<void> managementSetup() async {
         FOREIGN KEY (transaction_id) REFERENCES ${Transaction.tableName}(id) ON DELETE CASCADE
     );
   """);
-  await batch.commit(noResult: true);
-  if (res.isNotEmpty) {
-    await LocalDBHandler.runRawUpdateQuery(
-      """
-      UPDATE plugins
-      SET isSetup = ?, isActive = ?
-      WHERE id = ?;
-      """,
-      [true, true, res[0]['id']],
-    );
+}
+
+/// For Download all assets needed for the start of the plugin
+Future<List<String>?> downloadAssets() async {
+  List<String> paths = List.filled(3, "");
+  // Download for susu ori
+  final res1 = await CloudinaryHandler.downloadAndStoreImage(
+    managementName,
+    'susu_ori.jpg',
+  );
+  if (res1 == null) {
+    return null;
   } else {
-    await LocalDBHandler.runRawInsertQuery(
-      """
-      INSERT INTO plugins (name, isSetup, isActive)
-      values (?, ?, ?);
-      """,
-      [tableName, true, true],
-    );
+    paths[0] = res1;
   }
-  print("Success Setup");
+  // Download for susu coklat
+  final res2 = await CloudinaryHandler.downloadAndStoreImage(
+    managementName,
+    'susu_coklat.jpg',
+  );
+  if (res2 == null) {
+    return null;
+  } else {
+    paths[1] = res2;
+  }
+  // Download for susu ori
+  final res3 = await CloudinaryHandler.downloadAndStoreImage(
+    managementName,
+    'susu_stroberi.jpg',
+  );
+  if (res3 == null) {
+    return null;
+  } else {
+    paths[2] = res3;
+  }
+  return paths;
+}
+
+/// Seeding the database with dummy data, for dev & preview only
+Future<void> managementSeeder(Batch batch) async {
+  final paths = await downloadAssets();
+  if (paths == null) return;
+  // 1. Seed Table Product
+  batch.insert(Product.tableName, {
+    'name': 'Susu Original',
+    'price': 8000.0,
+    'stock': 50,
+    'image_path': paths[0],
+    'qr_image_path': null,
+  });
+
+  batch.insert(Product.tableName, {
+    'name': 'Susu Coklat',
+    'price': 10000.0,
+    'stock': 100,
+    'image_path': paths[1],
+    'qr_image_path': null,
+  });
+
+  batch.insert(Product.tableName, {
+    'name': 'Susu Stroberi',
+    'price': 10000.0,
+    'stock': 30,
+    'image_path': paths[2],
+    'qr_image_path': null,
+  });
+
+  // 2. Seed Table Transaction
+  // Menggunakan ISO8601 string atau membiarkan SQLite mengisi CURRENT_TIMESTAMP
+  batch.insert(Transaction.tableName, {
+    'datetime': DateTime.now().toUtc().toIso8601String(),
+  });
+
+  batch.insert(Transaction.tableName, {
+    'datetime': DateTime.now()
+        .toUtc()
+        .subtract(const Duration(hours: 1))
+        .toIso8601String(),
+  });
+
+  // 3. Seed Table TransactionDetail
+  // Referensi ke product_id (1, 2, 3) dan transaction_id (1, 2)
+  batch.insert(TransactionDetail.tableName, {
+    'product_id': 1,
+    'transaction_id': 1,
+    'quantity': 2,
+  });
+
+  batch.insert(TransactionDetail.tableName, {
+    'product_id': 2,
+    'transaction_id': 1,
+    'quantity': 1,
+  });
+
+  batch.insert(TransactionDetail.tableName, {
+    'product_id': 3,
+    'transaction_id': 2,
+    'quantity': 1,
+  });
 }
 
 Future<void> manageTest() async {
@@ -102,8 +224,15 @@ Future<void> manageTest() async {
   final res2 = await LocalDBHandler.runRawSelectQuery(
     "SELECT * FROM ${Transaction.tableName}",
   );
-  print("Transaction detail:\n$res2");
-  ManageUtils.saveReport(DateTime(2016, 9, 7, 17, 0).toUtc(), DateTime.now());
+  print("Transaction:\n$res2");
+  final res3 = await LocalDBHandler.runRawSelectQuery(
+    "SELECT * FROM ${Product.tableName}",
+  );
+  print("Product:\n$res3");
+  ManageUtils.saveReport(
+    DateTime(2016, 9, 7, 17, 0),
+    DateTime.now().add(const Duration(days: 1)),
+  );
 }
 // #endregion
 
@@ -469,14 +598,9 @@ class Transaction {
         await LocalDBHandler.runRawSelectQuery(
           """
       SELECT 
-        t.id AS transaction_id,
-        t.datetime, 
-        td.id AS detail_id,
-        td.product_id,
-        td.quantity,
-        c.name AS product_name,
-        c.price AS price,
-        (td.quantity * COALESCE(c.price, 0.0)) AS total_item_price
+        t.id AS id,
+        t.datetime AS datetime, 
+        SUM(td.quantity * COALESCE(c.price, 0.0)) AS total_price
       FROM $tableName t
       INNER JOIN ${TransactionDetail.tableName} td
         ON t.id = td.transaction_id
@@ -484,38 +608,85 @@ class Transaction {
         ON c.id = td.product_id
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
+      GROUP BY t.id, t.datetime
       ORDER BY t.datetime ASC;
       """,
           [start.toIso8601String(), end.toIso8601String()],
         );
-    print("res:\n$res");
+    print("res trans:\n$res");
+    return res;
+  }
+
+  /// Get all transaction and its transaction detail needed for transaction report
+  /// The detail needed is transaction static and product static
+  static Future<List<Map<String, Object?>>?> getAllProductStat(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final List<Map<String, Object?>>? res =
+        await LocalDBHandler.runRawSelectQuery(
+          """
+      SELECT 
+        c.name AS product_name, 
+        SUM(td.quantity) AS total_selled
+      FROM $tableName t
+      INNER JOIN ${TransactionDetail.tableName} td
+        ON t.id = td.transaction_id
+      INNER JOIN ${Product.tableName} c
+        ON c.id = td.product_id
+      WHERE datetime(t.datetime) >= datetime(?) 
+        AND datetime(t.datetime) <= datetime(?)
+      GROUP BY c.id
+      ORDER BY t.datetime ASC;
+      """,
+          [start.toIso8601String(), end.toIso8601String()],
+        );
+    print("res prod:\n$res");
     return res;
   }
 }
 
+/// We can only calculate selledQuantity because the product quantity itself is dynamic.
+/// And we dont store the quantity on that day.
 class ProductReport {
   String name;
   int selledQuantity;
 
   ProductReport(this.name, this.selledQuantity);
+
+  static ProductReport createFromMap(Map<String, Object?> map) {
+    return ProductReport(
+      map["product_name"] as String,
+      map["total_selled"] as int,
+    );
+  }
+
+  static List<ProductReport> createFromListMap(
+    List<Map<String, Object?>> data,
+  ) {
+    // Need to create two type of data
+    return [for (final map in data) ProductReport.createFromMap(map)];
+  }
 }
 
-class ReportRecord {
+class TransactionRecord {
   DateTime date;
   double totalPrice;
 
-  ReportRecord(this.date, this.totalPrice);
+  TransactionRecord(this.date, this.totalPrice);
 
-  static ReportRecord createFromMap(Map<String, Object?> map) {
-    return ReportRecord(
+  static TransactionRecord createFromMap(Map<String, Object?> map) {
+    return TransactionRecord(
       strToDateTime((map["datetime"] as String)),
       map["total_price"] as double,
     );
   }
 
-  static List<ReportRecord> createFromListMap(List<Map<String, Object?>> data) {
+  static List<TransactionRecord> createFromListMap(
+    List<Map<String, Object?>> data,
+  ) {
     // Need to create two type of data
-    return [for (final map in data) ReportRecord.createFromMap(map)];
+    return [for (final map in data) TransactionRecord.createFromMap(map)];
   }
 }
 
@@ -578,7 +749,6 @@ class TransactionDetail {
 /// Class to access utils method for management feature
 class ManageUtils {
   static const _cloudPwKey = "cloudPwKey";
-  static const _reportDir = "reports";
 
   static final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(),
@@ -594,9 +764,63 @@ class ManageUtils {
     return _storage.read(key: _cloudPwKey);
   }
 
-  /// Get List of ReportRecord to show the report of transaction/sell.
+  static Future<bool> login() async {
+    final pw = await getCloudSyncPw();
+    if (pw == null) return false;
+    final success = await cloudLogin(
+      const String.fromEnvironment("SUPABASE_USER_EMAIL"),
+      pw,
+    );
+    return success;
+  }
+
+  /// Format the excel for transaction detail report
+  static Future<bool> _createTransReportExcel(
+    DateTime start,
+    DateTime end,
+    Worksheet sheet,
+    List<TransactionRecord>? reportData,
+  ) async {
+    const List<String> columnNames = ["Waktu", "Total"];
+    reportData ??= await createTransReport(start, end);
+    if (reportData == null) return false;
+
+    sheet.getRangeByIndex(1, 1).setText(columnNames[0]);
+    sheet.getRangeByIndex(1, 2).setText(columnNames[1]);
+    int ri = 1;
+    for (final record in reportData) {
+      ++ri;
+      sheet.getRangeByIndex(ri, 1).setDateTime(record.date);
+      sheet.getRangeByIndex(ri, 2).setNumber(record.totalPrice);
+    }
+    return true;
+  }
+
+  /// Format the excel sheet for product statistic reports
+  static Future<bool> _createProductReportExcel(
+    DateTime start,
+    DateTime end,
+    Worksheet sheet,
+    List<ProductReport>? reportData,
+  ) async {
+    const List<String> columnNames = ["Nama Produk", "Total Terjual"];
+    reportData ??= await createProdReport(start, end);
+    if (reportData == null) return false;
+
+    sheet.getRangeByIndex(1, 4).setText(columnNames[0]);
+    sheet.getRangeByIndex(1, 5).setText(columnNames[1]);
+    int ri = 1;
+    for (final record in reportData) {
+      ++ri;
+      sheet.getRangeByIndex(ri, 4).setText(record.name);
+      sheet.getRangeByIndex(ri, 5).setNumber(record.selledQuantity.toDouble());
+    }
+    return true;
+  }
+
+  /// Get List of TransactionRecord to show the report of transaction/sell.
   /// Return null if error
-  static Future<List<ReportRecord>?> createReport(
+  static Future<List<TransactionRecord>?> createTransReport(
     DateTime start, // Add end
     DateTime end,
   ) async {
@@ -604,34 +828,36 @@ class ManageUtils {
     end = end.toUtc();
     final res = await Transaction.getAllTransactionAndDetails(start, end);
     if (res == null) return null;
-    return ReportRecord.createFromListMap(res);
+    return TransactionRecord.createFromListMap(res);
   }
 
-  static List<String> _columnNames = ["Waktu", "Total"];
+  /// Get List of ProductReport to show the report of selled product stat.
+  /// Return null if error
+  static Future<List<ProductReport>?> createProdReport(
+    DateTime start, // Add end
+    DateTime end,
+  ) async {
+    start = start.toUtc();
+    end = end.toUtc();
+    final res = await Transaction.getAllProductStat(start, end);
+    if (res == null) return null;
+    return ProductReport.createFromListMap(res);
+  }
 
   /// Cretae excel and save report on it. It sgould be saved in download directory.
-  /// Pass the reportDara if you have list of ReportRecord to avoid calling createReport twice.
+  /// Pass the reportDara if you have list of TransactionRecord to avoid calling createReport twice.
   /// Return true if success, otherwise false
   static Future<bool> saveReport(
     DateTime start,
     DateTime end, {
-    List<ReportRecord>? reportData,
+    List<TransactionRecord>? reportData,
+    List<ProductReport>? productData,
   }) async {
     final filePath = '${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
-
-    reportData ??= await createReport(start, end);
-    if (reportData == null) return false;
     final Workbook wb = Workbook();
-
-    final Worksheet sheet1 = wb.worksheets[0];
-    sheet1.getRangeByIndex(1, 1).setText(_columnNames[0]);
-    sheet1.getRangeByIndex(1, 2).setText(_columnNames[1]);
-    int ri = 1;
-    for (final record in reportData) {
-      ++ri;
-      sheet1.getRangeByIndex(ri, 1).setDateTime(record.date);
-      sheet1.getRangeByIndex(ri, 2).setNumber(record.totalPrice);
-    }
+    final Worksheet sheet = wb.worksheets[0];
+    await _createTransReportExcel(start, end, sheet, reportData);
+    await _createProductReportExcel(start, end, sheet, productData);
     FileHandler.saveFileWithPicker(
       bytes: wb.saveAsStream(),
       fileName: filePath,

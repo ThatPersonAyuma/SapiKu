@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sapiku/utils/utils.dart';
 
 class FileHandler {
   static Future<String> storeImage(
@@ -28,6 +30,24 @@ class FileHandler {
     return filePath;
   }
 
+  static Future<String> saveBinary(
+    String prefix,
+    String filename,
+    Uint8List bytes,
+  ) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final filePath = "$directory/$prefix/$filename";
+    final File newFile = File(filePath);
+    await newFile.parent.create(recursive: true);
+    await newFile.writeAsBytes(bytes);
+    return filePath;
+  }
+
+  static Future<String> getStoredPath(String prefix, String filename) async {
+    final directory = await getApplicationDocumentsDirectory();
+    return "$directory/$prefix/$filename";
+  }
+
   static Future<String?> getDownloadPath() async {
     Directory? directory;
     try {
@@ -43,6 +63,7 @@ class FileHandler {
       }
     } catch (err) {
       print("Cannot get download folder path, err: ${err.toString()}");
+      PopUpMessage.showOkMessage(PopUpTitle.error, "Tidak dapat mendapatkan download path.");
     }
     return directory?.path;
   }
@@ -72,6 +93,10 @@ class FileHandler {
       return finalPath != null;
     } catch (e) {
       print("Error saat menyimpan file: $e");
+      PopUpMessage.showOkMessage(
+        PopUpTitle.error,
+        "Error saat menyimpan file.",
+      );
       return false;
     } finally {
       // 4. Hapus file sementara setelah selesai agar tidak memenuhi memori
