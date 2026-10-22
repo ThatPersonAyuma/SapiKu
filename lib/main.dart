@@ -33,7 +33,6 @@ class MyApp extends StatelessWidget {
       // home: DatabaseTestScreen(),
       initialRoute: AppRouter.home,
       onGenerateRoute: AppRouter.onGenerateRoute,
-      navigatorKey: navigatorKey
     );
   }
 }
