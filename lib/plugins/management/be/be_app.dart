@@ -55,16 +55,16 @@ Future<void> managementSetup() async {
         datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   """);
-  batch.execute("""
-    CREATE TABLE IF NOT EXISTS ${TransactionDetail.tableName} (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id INTEGER NOT NULL,
-        transaction_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL,
-        FOREIGN KEY (product_id) REFERENCES ${Product.tableName}(id) ON DELETE RESTRICT,
-        FOREIGN KEY (transaction_id) REFERENCES ${Transaction.tableName}(id) ON DELETE CASCADE
-    );
-  """);
+   batch.execute("""
+     CREATE TABLE IF NOT EXISTS ${TransactionDetail.tableName} (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         product_id INTEGER NOT NULL,
+         transaction_id INTEGER NOT NULL,
+         quantity INTEGER NOT NULL,
+         FOREIGN KEY (product_id) REFERENCES ${Product.tableName}(id) ON DELETE CASCADE,
+         FOREIGN KEY (transaction_id) REFERENCES ${Transaction.tableName}(id) ON DELETE CASCADE
+     );
+   """);
   await batch.commit(noResult: true);
   if (res.isNotEmpty) {
     await LocalDBHandler.runRawUpdateQuery(
@@ -292,33 +292,45 @@ class Product {
     }
   }
 
-  /// Open qr scan and scan the qr. Return Product if qr scanned succesfully.
-  /// Otherwise return null. This can happen if qr scan failed or product with that id didn't exist
-  static Future<Product?> getFromQr(BuildContext ctx) async {
-    final int? id = await Navigator.push(
-      ctx,
-      MaterialPageRoute<int>(builder: (context) => const QRScannerPage()),
-    );
-    // Error on read qr
-    if (id == null) return null;
-    return await Product.getById(id);
-  }
+   /// Open qr scan and scan the qr. Return Product if qr scanned succesfully.
+   /// Otherwise return null. This can happen if qr scan failed or product with that id didn't exist
+   static Future<Product?> getFromQr(BuildContext ctx) async {
+     final int? id = await Navigator.push(
+       ctx,
+       MaterialPageRoute<int>(builder: (context) => const QRScannerPage()),
+     );
+     // Error on read qr
+     if (id == null) return null;
+     return await Product.getById(id);
+   }
 
-  /// Delete a record by given id
-  static Future<void> destroyById(int id) async {
-    return await LocalDBHandler.runActionQuery(
-      "DELETE FROM $tableName WHERE id=?",
-      [id],
-    );
-  }
+   /// Delete a record by given id
+   static Future<void> destroyById(int id) async {
+     // Delete related transaction details first due to foreign key constraint
+     await LocalDBHandler.runActionQuery(
+       "DELETE FROM ${TransactionDetail.tableName} WHERE product_id=?",
+       [id],
+     );
+     // Then delete the product
+     return await LocalDBHandler.runActionQuery(
+       "DELETE FROM $tableName WHERE id=?",
+       [id],
+     );
+   }
 
-  /// Delete self from local database. Note this is not destroy the instance but only delete from the local database
-  Future<void> destroy() async {
-    return await LocalDBHandler.runActionQuery(
-      "DELETE FROM $tableName WHERE id=?",
-      [id],
-    );
-  }
+   /// Delete self from local database. Note this is not destroy the instance but only delete from the local database
+   Future<void> destroy() async {
+     // Delete related transaction details first due to foreign key constraint
+     await LocalDBHandler.runActionQuery(
+       "DELETE FROM ${TransactionDetail.tableName} WHERE product_id=?",
+       [id],
+     );
+     // Then delete the product
+     return await LocalDBHandler.runActionQuery(
+       "DELETE FROM $tableName WHERE id=?",
+       [id],
+     );
+   }
 }
 
 class Transaction {
