@@ -7,6 +7,8 @@ import 'package:sapiku/plugins/management/fe/pages/management_menu_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/management_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/penjualan_detail_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/penjualan_page.dart';
+import 'package:sapiku/plugins/management/fe/pages/add_product_page.dart';
+import 'package:sapiku/plugins/management/fe/pages/product_detail_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/penjualan_tambah_page.dart';
 
 class AppRouter {
@@ -19,6 +21,8 @@ class AppRouter {
   static const String managementPenjualan = '/management/penjualan';
   static const String managementPenjualanDetail = '/management/penjualan/detail';
   static const String managementPenjualanTambah = '/management/penjualan/tambah';
+  static const String managementTambah = '/management/tambah';
+  static const String managementProductDetail = '/management/product/detail';
 
   static Route<dynamic> onGenerateRoute(RouteSettings s) {
     switch (s.name) {
@@ -46,6 +50,16 @@ class AppRouter {
         }
       case managementPenjualanTambah:
         return _slide(const PenjualanTambahPage(), s);
+      case managementTambah:
+        return _slide(const AddProductPage(), s);
+      case managementProductDetail:
+        {
+          final args = s.arguments as Map<String, dynamic>?;
+          if (args != null && args['product'] != null) {
+            return _slide(ProductDetailPage(product: args['product']), s);
+          }
+          return _slide(const Scaffold(body: Center(child: Text('Produk tidak ditemukan'))), s);
+        }
       default:
         return _slide(const Scaffold(body: Center(child: Text('Route not found'))), s);
     }
