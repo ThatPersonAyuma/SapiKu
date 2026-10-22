@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:sapiku/main.dart';
 
+int boolToInt(bool a) => a ? 1 : 0;
+
 DateTime strToDateTime(String datetime) {
   return DateTime.parse(datetime);
 }

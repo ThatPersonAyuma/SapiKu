@@ -61,7 +61,7 @@ class _DownloadPage extends State<DownloadPage> {
               name: data.name,
               icon: CustomIcons.basil_book_solid,
               downloadCallback: PluginHandler.manageEnsurePlugin,
-              removeCallback: () async {},
+              removeCallback: PluginHandler.deleteManagementPlugin,
               plugin: await Plugin.getFromByName(data.name)
             ),
           );

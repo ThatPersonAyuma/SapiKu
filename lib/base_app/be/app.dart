@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/base_app/fe/pages/download_plugin.dart';
 import 'package:sapiku/plugins/management/be/be_app.dart';
-import 'package:sapiku/utils/db/cloud_handler.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/utils.dart';
 
 class PluginHandler {
   static Future<List<Plugin>?> getAllReadyPlugin() async {
     final res = await LocalDBHandler.runRawSelectQuery(
-      "SELECT * FROM ${Plugin.tableName}",
-      [],
+      "SELECT * FROM ${Plugin.tableName} WHERE is_setup=?",
+      [1],
     );
     if (res == null) return null;
     return [for (final map in res) Plugin.createFromMap(map)];
   }
 
-  static Future<bool> getManagementPlugin() async {
+  static Future<bool> getManagementPlugin(VoidCallback callback) async {
     // Start of Before Update With ShoreBird
     if (!await canUpdateManagePlugin()) {
       return false;
@@ -23,7 +22,8 @@ class PluginHandler {
     // await managementSetup(); // Download Method
     // End of Before Update With ShoreBird
     // Start of After Update With ShoreBird
-    return await managementSetup();
+    callback();
+    return await managementSetup(callback);
     // End of After Update With ShoreBird
   }
 
@@ -58,7 +58,7 @@ class PluginHandler {
       );
       if (isDownload) {
         callback();
-        final downRes = await getManagementPlugin();
+        final downRes = await getManagementPlugin(callback);
         if (downRes) {
           PopUpMessage.showOkMessage(
             PopUpTitle.success,
@@ -73,6 +73,24 @@ class PluginHandler {
       // Already setup
     }
     return true;
+  }
+
+  /// Delete all data for managements.
+  /// Meaning it will lost all of the data that known by system.
+  /// Excluding report because it is not tracked
+  static Future<void> deleteManagementPlugin() async {
+    // For now just change is_setup to false;
+    final plugin = await Plugin.getFromByName("management");
+    if (plugin == null) {
+      PopUpMessage.showOkMessage(
+        PopUpTitle.error,
+        "Data plugin pencatatan tidak ditemukan.",
+      );
+      return;
+    }
+    // Here we should delete all of the data.
+    plugin.isSetup = false;
+    await plugin.saveToDb();
   }
 
   /// This called when the plugin management button get pressed on plugin menu

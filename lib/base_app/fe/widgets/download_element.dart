@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:sapiku/core/fe/theme/app_colors.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
+import 'package:sapiku/utils/utils.dart';
 
 typedef PluginCallback = void Function(BuildContext, String);
 
@@ -31,7 +32,7 @@ class DownloadCard extends StatefulWidget {
 class _DownloadCard extends State<DownloadCard> {
   bool get isSetup => widget.plugin != null && widget.plugin!.isSetup;
   bool _isDownloading = false;
-  int maxProgress = 10;
+  int maxProgress = 8;
   int currentProgress = 0;
   double percentProgress = 0.0;
   void downloadProgress() {
@@ -51,10 +52,25 @@ class _DownloadCard extends State<DownloadCard> {
       currentProgress = 0;
     });
     await widget.downloadCallback(downloadProgress);
+    setState(() {
+      currentProgress = maxProgress;
+    });
     final res = await Plugin.getFromByName(widget.name);
     setState(() {
       widget.plugin = res;
       _isDownloading = false;
+    });
+  }
+
+  Future<void> delete() async {
+    final decision = await PopUpMessage.showYesNoMessage(
+      "Anda akan menghapus plugin Pencatatan beserta datanya. Apakah anda yakin ingin menghapus plugin ini?",
+    );
+    if (!decision) return;
+    await widget.removeCallback();
+    final plugData = await Plugin.getFromByName(widget.name);
+    setState(() {
+      widget.plugin = plugData;
     });
   }
 
@@ -145,9 +161,18 @@ class _DownloadCard extends State<DownloadCard> {
                       ),
                       if (isSetup)
                         Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Icon(Icons.check),
-                            IconButton(onPressed: () {}, icon: Icon(Icons.delete)),
+                            Icon(Icons.check, color: Colors.green, size: 50),
+                            IconButton(
+                              onPressed: delete,
+                              icon: Icon(
+                                Icons.delete,
+                                size: 50,
+                                color: Colors.red,
+                              ),
+                            ),
                           ],
                         ),
                       if (_isDownloading) const SizedBox(width: 16),

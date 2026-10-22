@@ -1,4 +1,5 @@
 import 'package:path/path.dart';
+import 'package:sapiku/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Handler class for Local DB. It use sqlite.
@@ -138,7 +139,7 @@ class Plugin {
   Future<int?> saveToDb() async {
     return await LocalDBHandler.runRawUpdateQuery(
       "UPDATE $tableName SET name = ?, is_setup = ? WHERE id = ?;",
-      [name, isSetup, id],
+      [name, boolToInt(isSetup), id],
     );
   }
 }

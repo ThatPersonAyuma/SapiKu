@@ -29,32 +29,36 @@ import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 // #region Temporary
 /// Simulate setup in download plugin, used in before main
 const managementName = "management";
-Future<bool> managementSetup() async {
+Future<bool> managementSetup(VoidCallback callback) async {
   final res = await LocalDBHandler.runRawSelectQuery(
     "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
     [managementName],
   );
+  callback();
   if (res == null) return false;
   if (res.isNotEmpty) {
     if (res[0]['is_setup'] == 1) return true;
   }
+  // Because the data is not cleaned perfectly, we need to avoid redundant adding
+  if (res.isEmpty){
+    final batch = LocalDBHandler.getBatch();
+    if (batch == null) return false;
 
-  final batch = LocalDBHandler.getBatch();
-  if (batch == null) return false;
+    await managementCreateTables(batch);
+    callback();
 
-  await managementCreateTables(batch);
-
-  await managementSeeder(batch);
-
-  await batch.commit(noResult: true);
+    await managementSeeder(batch, callback);
+    
+    await batch.commit(noResult: true);
+  }
   if (res.isNotEmpty) {
     await LocalDBHandler.runRawUpdateQuery(
       """
       UPDATE plugins
-      SET is_setup = ?,
+      SET is_setup = ?
       WHERE id = ?;
       """,
-      [true, res[0]['id']],
+      [boolToInt(true), res[0]['id']],
     );
   } else {
     await LocalDBHandler.runRawInsertQuery(
@@ -62,9 +66,10 @@ Future<bool> managementSetup() async {
       INSERT INTO plugins (name, is_setup)
       values (?, ?);
       """,
-      [managementName, true],
+      [managementName, boolToInt(true)],
     );
   }
+  callback();
   print("Success Setup");
   return true;
 }
@@ -111,7 +116,7 @@ Future<void> managementCreateTables(Batch batch) async {
 }
 
 /// For Download all assets needed for the start of the plugin
-Future<List<String>?> downloadAssets() async {
+Future<List<String>?> downloadAssets(VoidCallback callback) async {
   List<String> paths = List.filled(3, "");
   // Download for susu ori
   final res1 = await CloudinaryHandler.downloadAndStoreImage(
@@ -123,6 +128,7 @@ Future<List<String>?> downloadAssets() async {
   } else {
     paths[0] = res1;
   }
+  callback();
   // Download for susu coklat
   final res2 = await CloudinaryHandler.downloadAndStoreImage(
     managementName,
@@ -133,6 +139,7 @@ Future<List<String>?> downloadAssets() async {
   } else {
     paths[1] = res2;
   }
+  callback();
   // Download for susu ori
   final res3 = await CloudinaryHandler.downloadAndStoreImage(
     managementName,
@@ -143,12 +150,13 @@ Future<List<String>?> downloadAssets() async {
   } else {
     paths[2] = res3;
   }
+  callback();
   return paths;
 }
 
 /// Seeding the database with dummy data, for dev & preview only
-Future<void> managementSeeder(Batch batch) async {
-  final paths = await downloadAssets();
+Future<void> managementSeeder(Batch batch, VoidCallback callback) async {
+  final paths = await downloadAssets(callback);
   if (paths == null) return;
   // 1. Seed Table Product
   batch.insert(Product.tableName, {
