@@ -10,6 +10,8 @@ import 'package:sapiku/plugins/management/fe/pages/penjualan_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/add_product_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/product_detail_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/penjualan_tambah_page.dart';
+import 'package:sapiku/plugins/management/fe/pages/product_scan_qr_page.dart';
+import 'package:sapiku/plugins/management/fe/pages/product_update_stock_page.dart';
 
 class AppRouter {
   static const String home = '/';
@@ -23,6 +25,8 @@ class AppRouter {
   static const String managementPenjualanTambah = '/management/penjualan/tambah';
   static const String managementTambah = '/management/tambah';
   static const String managementProductDetail = '/management/product/detail';
+  static const String managementProductScanQr = '/management/product/scan-qr';
+  static const String managementProductUpdateStock = '/management/product/update-stock';
 
   static Route<dynamic> onGenerateRoute(RouteSettings s) {
     switch (s.name) {
@@ -52,15 +56,19 @@ class AppRouter {
         return _slide(const PenjualanTambahPage(), s);
       case managementTambah:
         return _slide(const AddProductPage(), s);
-      case managementProductDetail:
-        {
-          final args = s.arguments as Map<String, dynamic>?;
-          if (args != null && args['product'] != null) {
-            return _slide(ProductDetailPage(product: args['product']), s);
-          }
-          return _slide(const Scaffold(body: Center(child: Text('Produk tidak ditemukan'))), s);
-        }
-      default:
+       case managementProductDetail:
+         {
+           final args = s.arguments as Map<String, dynamic>?;
+           if (args != null && args['product'] != null) {
+             return _slide(ProductDetailPage(product: args['product']), s);
+           }
+           return _slide(const Scaffold(body: Center(child: Text('Produk tidak ditemukan'))), s);
+         }
+       case managementProductScanQr:
+         return _slide(const ProductScanQrPage(), s);
+       case managementProductUpdateStock:
+         return _slide(const ProductUpdateStockPage(), s);
+       default:
         return _slide(const Scaffold(body: Center(child: Text('Route not found'))), s);
     }
   }

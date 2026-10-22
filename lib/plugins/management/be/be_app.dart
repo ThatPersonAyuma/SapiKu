@@ -239,15 +239,24 @@ class Product {
     return Product(id, name, price, stock, imgPath, null);
   }
 
-  /// Save current Product, return int of count if success otherwise null
-  Future<int?> saveToDb() async {
-    return await LocalDBHandler.runRawUpdateQuery(
-      "UPDATE $tableName SET name = ?, price = ?, stock = ?, image_path = ?, qr_image_path = ? WHERE id = ?;",
-      [name, price, stock, imagePath, qrImagePath, id],
-    );
-  }
+   /// Save current Product, return int of count if success otherwise null
+   Future<int?> saveToDb() async {
+     return await LocalDBHandler.runRawUpdateQuery(
+       "UPDATE $tableName SET name = ?, price = ?, stock = ?, image_path = ?, qr_image_path = ? WHERE id = ?;",
+       [name, price, stock, imagePath, qrImagePath, id],
+     );
+   }
 
-  /// Change product image and destroy before if exist also change current imagePath and save to the database
+   /// Update stock produk, return int of count if success otherwise null
+   Future<int?> updateStock(int newStock) async {
+     stock = newStock;
+     return await LocalDBHandler.runRawUpdateQuery(
+       "UPDATE $tableName SET stock = ? WHERE id = ?;",
+       [stock, id],
+     );
+   }
+
+   /// Change product image and destroy before if exist also change current imagePath and save to the database
   Future<void> changeProductImage(XFile img) async {
     imagePath = await FileHandler.storeImage(productImgPath, img, imagePath);
     saveToDb();

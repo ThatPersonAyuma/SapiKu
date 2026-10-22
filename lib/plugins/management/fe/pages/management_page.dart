@@ -106,18 +106,23 @@ class _ManagementPageState extends State<ManagementPage> {
                             ),
             ),
           ),
-          ManagementFabMenu(
-            onScan: () => print('Scan QR'),
-            onUpdateStock: () => print('Update Stock'),
-            onTambah: () async {
-              final result = await Navigator.pushNamed(context, '/management/tambah');
-              await _load();
-              if (result is Product) {
-                await _scrollToProduct(result.id);
-              }
-            },
-            onLaporan: () => print('Laporan'),
-          ),
+           ManagementFabMenu(
+             onScan: () async {
+               await Navigator.pushNamed(context, '/management/product/scan-qr');
+             },
+              onUpdateStock: () async {
+                await Navigator.pushNamed(context, '/management/product/update-stock');
+                await _load();
+              },
+             onTambah: () async {
+               final result = await Navigator.pushNamed(context, '/management/tambah');
+               await _load();
+               if (result is Product) {
+                 await _scrollToProduct(result.id);
+               }
+             },
+             onLaporan: () => print('Laporan'),
+           ),
         ],
       ),
       bottomNavigationBar: const AppBottomBar(),
