@@ -30,7 +30,7 @@ class LocalDBHandler {
         // Create Config/Default table
 
         return db.execute(
-          'CREATE TABLE ${Plugin.tableName}(id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, is_setup BOOL DEFAULT FALSE, is_active BOOL DEFAULT FALSE)',
+          'CREATE TABLE ${Plugin.tableName}(id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, is_setup BOOL DEFAULT FALSE)',
         );
       },
     );
@@ -114,23 +114,31 @@ class Plugin {
   int id;
   String name;
   bool isSetup;
-  bool isActive;
 
-  Plugin(this.id, this.name, this.isSetup, this.isActive);
+  Plugin(this.id, this.name, this.isSetup);
 
   static Plugin createFromMap(Map<String, Object?> map) {
     return Plugin(
       map['id'] as int,
       map['name'] as String,
-      map['is_setup'] as bool,
-      map['is_active'] as bool,
+      (map['is_setup'] as int)==1,
     );
+  }
+
+  static Future<Plugin?> getFromByName(String name) async {
+    final res = await LocalDBHandler.runRawSelectQuery(
+      "SELECT * FROM $tableName WHERE name = ?;",
+      [name],
+    );
+    if (res == null) return null;
+    if (res.isEmpty) return null;
+    return Plugin.createFromMap(res[0]);
   }
 
   Future<int?> saveToDb() async {
     return await LocalDBHandler.runRawUpdateQuery(
-      "UPDATE $tableName SET name = ?, is_setup = ?, is_active = ? WHERE id = ?;",
-      [name, isSetup, isActive, id],
+      "UPDATE $tableName SET name = ?, is_setup = ? WHERE id = ?;",
+      [name, isSetup, id],
     );
   }
 }

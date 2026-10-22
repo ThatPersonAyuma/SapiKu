@@ -31,7 +31,7 @@ import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 const managementName = "management";
 Future<bool> managementSetup() async {
   final res = await LocalDBHandler.runRawSelectQuery(
-    "SELECT id, is_setup FROM plugins WHERE name = ?",
+    "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
     [managementName],
   );
   if (res == null) return false;
@@ -51,18 +51,18 @@ Future<bool> managementSetup() async {
     await LocalDBHandler.runRawUpdateQuery(
       """
       UPDATE plugins
-      SET is_setup = ?, is_active = ?
+      SET is_setup = ?,
       WHERE id = ?;
       """,
-      [true, true, res[0]['id']],
+      [true, res[0]['id']],
     );
   } else {
     await LocalDBHandler.runRawInsertQuery(
       """
-      INSERT INTO plugins (name, is_setup, is_active)
-      values (?, ?, ?);
+      INSERT INTO plugins (name, is_setup)
+      values (?, ?);
       """,
-      [managementName, true, true],
+      [managementName, true],
     );
   }
   print("Success Setup");

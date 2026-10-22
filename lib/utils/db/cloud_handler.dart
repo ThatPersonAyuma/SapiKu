@@ -1,3 +1,4 @@
+import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -45,9 +46,41 @@ Future<bool> cloudLogin(String email, String password) async {
 Future<void> test() async {
   final res = await checkInternetConnection();
   if (!res) return;
-  final _future = await Supabase.instance.client.from('Test').select();
-  // List<Map<String,dynamic>> convertedList = _future.map((element) => Map<String, dynamic>.from(element)).toList();
-  print("Hasil cloud: $_future");
+  final future = await Supabase.instance.client.from('Test').select();
+  // List<Map<String,dynamic>> convertedList = future.map((element) => Map<String, dynamic>.from(element)).toList();
+  print("Hasil cloud: $future");
+}
+
+Future<List<PluginConf>?> getPluginData() async {
+  try {
+    final res = await Supabase.instance.client
+        .from('plugins')
+        .select('name, version, track');
+    print("plugin data: $res");
+    return [for (final map in res) PluginConf.createFromMap(map)];
+  } catch (e) {
+    PopUpMessage.showOkMessage(
+      PopUpTitle.error,
+      "Terjadi kesalahan ketika mengambil data plugin dari database.",
+    );
+    return null;
+  }
+}
+
+class PluginConf {
+  String name;
+  String version;
+  String track;
+
+  PluginConf(this.name, this.version, this.track);
+
+  static PluginConf createFromMap(Map<String, Object?> map) {
+    return PluginConf(
+      map['name'] as String,
+      map['version'] as String,
+      map['track'] as String,
+    );
+  }
 }
 
 // Describe all queried data here

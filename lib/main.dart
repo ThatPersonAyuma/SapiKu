@@ -31,6 +31,7 @@ class MyApp extends StatelessWidget {
       title: 'SapiKu',
       theme: ThemeData(useMaterial3: true, fontFamily: 'Poppins'),
       // home: DatabaseTestScreen(),
+      navigatorKey: navigatorKey,
       initialRoute: AppRouter.home,
       onGenerateRoute: AppRouter.onGenerateRoute,
     );

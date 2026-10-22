@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/core/fe/theme/app_colors.dart';
 
-typedef PluginCallback = void Function(BuildContext, String);
+typedef PluginCallback = Future<void> Function(BuildContext, String);
 
 class PluginCard extends StatelessWidget {
   final String title;
@@ -10,6 +10,7 @@ class PluginCard extends StatelessWidget {
   final IconData icon;
   final IconData subIcon;
   final PluginCallback? onTap;
+
   const PluginCard({
     super.key,
     required this.title,
@@ -22,8 +23,9 @@ class PluginCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void handleTap() =>
-        onTap != null ? onTap!(context, route) : Navigator.pushNamed(context, route);
+    void handleTap() => onTap != null
+        ? onTap!(context, route)
+        : Navigator.pushNamed(context, route);
     return Card(
       color: Colors.white,
       elevation: 0,
