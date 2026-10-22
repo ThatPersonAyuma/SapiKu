@@ -155,26 +155,9 @@ class _ManagementPageState extends State<ManagementPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(p.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                                  onPressed: () {
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, size: 20, color: Colors.red),
-                                  onPressed: () {
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12, bottom: 12),
+                          child: Text(p.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
                         ),
                         const Divider(height: 0, thickness: 0.5),
                         SizedBox(height: 14),
