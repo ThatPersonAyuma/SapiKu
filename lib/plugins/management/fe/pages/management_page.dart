@@ -106,18 +106,23 @@ class _ManagementPageState extends State<ManagementPage> {
                             ),
             ),
           ),
-          ManagementFabMenu(
-            onScan: () => print('Scan QR'),
-            onUpdateStock: () => print('Update Stock'),
-            onTambah: () async {
-              final result = await Navigator.pushNamed(context, '/management/tambah');
-              await _load();
-              if (result is Product) {
-                await _scrollToProduct(result.id);
-              }
-            },
-            onLaporan: () => print('Laporan'),
-          ),
+           ManagementFabMenu(
+             onScan: () async {
+               await Navigator.pushNamed(context, '/management/product/scan-qr');
+             },
+              onUpdateStock: () async {
+                await Navigator.pushNamed(context, '/management/product/update-stock');
+                await _load();
+              },
+             onTambah: () async {
+               final result = await Navigator.pushNamed(context, '/management/tambah');
+               await _load();
+               if (result is Product) {
+                 await _scrollToProduct(result.id);
+               }
+             },
+             onLaporan: () => print('Laporan'),
+           ),
         ],
       ),
       bottomNavigationBar: const AppBottomBar(),
@@ -150,26 +155,9 @@ class _ManagementPageState extends State<ManagementPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(p.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                                  onPressed: () {
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, size: 20, color: Colors.red),
-                                  onPressed: () {
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12, bottom: 12),
+                          child: Text(p.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
                         ),
                         const Divider(height: 0, thickness: 0.5),
                         SizedBox(height: 14),
