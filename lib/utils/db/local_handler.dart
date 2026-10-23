@@ -1,4 +1,5 @@
 import 'package:path/path.dart';
+import 'package:sapiku/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Handler class for Local DB. It use sqlite.
@@ -28,8 +29,9 @@ class LocalDBHandler {
       },
       onCreate: (db, version) {
         // Create Config/Default table
+
         return db.execute(
-          'CREATE TABLE plugins(id INTEGER PRIMARY KEY, name TEXT, isSetup BOOL DEFAULT FALSE, isActive BOOL DEFAULT FALSE)',
+          'CREATE TABLE ${Plugin.tableName}(id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, is_setup BOOL DEFAULT FALSE)',
         );
       },
     );
@@ -105,5 +107,39 @@ class LocalDBHandler {
     } else {
       return db!.batch();
     }
+  }
+}
+
+class Plugin {
+  static const tableName = "plugins";
+  int id;
+  String name;
+  bool isSetup;
+
+  Plugin(this.id, this.name, this.isSetup);
+
+  static Plugin createFromMap(Map<String, Object?> map) {
+    return Plugin(
+      map['id'] as int,
+      map['name'] as String,
+      (map['is_setup'] as int)==1,
+    );
+  }
+
+  static Future<Plugin?> getFromByName(String name) async {
+    final res = await LocalDBHandler.runRawSelectQuery(
+      "SELECT * FROM $tableName WHERE name = ?;",
+      [name],
+    );
+    if (res == null) return null;
+    if (res.isEmpty) return null;
+    return Plugin.createFromMap(res[0]);
+  }
+
+  Future<int?> saveToDb() async {
+    return await LocalDBHandler.runRawUpdateQuery(
+      "UPDATE $tableName SET name = ?, is_setup = ? WHERE id = ?;",
+      [name, boolToInt(isSetup), id],
+    );
   }
 }

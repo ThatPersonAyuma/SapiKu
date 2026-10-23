@@ -6,6 +6,8 @@ import 'package:sapiku/plugins/management/fe_app.dart';
 import 'package:sapiku/utils/db/cloud_handler.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
 
+final navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -13,7 +15,7 @@ Future<void> main() async {
   await cloudSetup();
   await test();
   await LocalDBHandler.setup();
-  await managementSetup();
+  // await managementSetup();
   // await manageTest();
   // #endregion
 
@@ -29,6 +31,7 @@ class MyApp extends StatelessWidget {
       title: 'SapiKu',
       theme: ThemeData(useMaterial3: true, fontFamily: 'Poppins'),
       // home: DatabaseTestScreen(),
+      navigatorKey: navigatorKey,
       initialRoute: AppRouter.home,
       onGenerateRoute: AppRouter.onGenerateRoute,
     );

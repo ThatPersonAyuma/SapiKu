@@ -50,6 +50,9 @@ dependencies:
   syncfusion_flutter_xlsio: ^35.1.39
   flutter_secure_storage: ^11.2.0
   flutter_file_dialog: ^3.0.3
+  http: ^1.6.0
+  archive: ^4.5.2
+  percent_indicator: ^4.2.5
 
 dev_dependencies:
   flutter_test:
