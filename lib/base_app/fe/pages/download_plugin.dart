@@ -73,7 +73,7 @@ class _DownloadPage extends State<DownloadPage> {
               subtitle: 'Fitur deteksi penyakit kulit sapi',
               name: data.name,
               icon: CustomIcons.griddy_icons_cow_filled,
-              downloadCallback: (VoidCallback) async {},
+              downloadCallback: PluginHandler.detectionEnsurePlugin,
               removeCallback: () async {},
               plugin: await Plugin.getFromByName(data.name)
             ),

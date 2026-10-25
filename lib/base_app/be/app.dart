@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/base_app/fe/pages/download_plugin.dart';
+import 'package:sapiku/plugins/detection/be/be_app.dart';
 import 'package:sapiku/plugins/management/be/be_app.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/utils.dart';
@@ -16,7 +17,7 @@ class PluginHandler {
 
   static Future<bool> getManagementPlugin(VoidCallback callback) async {
     // Start of Before Update With ShoreBird
-    if (!await canUpdateManagePlugin()) {
+    if (!await canUpdatePlugin()) {
       return false;
     }
     // await managementSetup(); // Download Method
@@ -27,7 +28,7 @@ class PluginHandler {
     // End of After Update With ShoreBird
   }
 
-  static Future<bool> canUpdateManagePlugin() async {
+  static Future<bool> canUpdatePlugin() async {
     final internetExist = await checkInternetConnection();
     if (!internetExist) {
       PopUpMessage.showOkMessage(
@@ -39,11 +40,48 @@ class PluginHandler {
     return true;
   }
 
-  static Future<bool> getDetectionPlugin() async {
-    return true;
+  static Future<bool> getDetectionPlugin(VoidCallback callback) async {
+    // Start of Before Update With ShoreBird
+    if (!await canUpdatePlugin()) {
+      return false;
+    }
+    // await managementSetup(); // Download Method
+    // End of Before Update With ShoreBird
+    // Start of After Update With ShoreBird
+    callback();
+    return await detectionSetup(callback);
+    // End of After Update With ShoreBird
   }
 
-  static Future<void> detectionEnsurePlugin() async {}
+  static Future<bool> detectionEnsurePlugin(VoidCallback callback) async {
+    final res = await LocalDBHandler.runRawSelectQuery(
+      "SELECT id, is_setup FROM plugins WHERE name = ?",
+      [detectionName],
+    );
+    if (res == null) return false; //Error
+    if (res.isEmpty || (res.isNotEmpty && (res[0]['is_setup'] as int) == 0)) {
+      // Meaning it's not setup yet
+      final isDownload = await PopUpMessage.showYesNoMessage(
+        """Plugin deteksi penyakit berisi fitur deteksi penyakit kulit sapi. Apakah anda ingin mengunduh plugin Deteksi Penyakit?""",
+      );
+      if (isDownload) {
+        callback();
+        final downRes = await getDetectionPlugin(callback);
+        if (downRes) {
+          PopUpMessage.showOkMessage(
+            PopUpTitle.success,
+            "Plugin Deteksi Penyakit berhasil ditambahkan.",
+          );
+        }
+        return downRes;
+      } else {
+        return false;
+      }
+    } else {
+      // Already setup
+    }
+    return true;
+  }
 
   static Future<bool> manageEnsurePlugin(VoidCallback callback) async {
     final res = await LocalDBHandler.runRawSelectQuery(
@@ -99,6 +137,17 @@ class PluginHandler {
     String route,
   ) async {
     final res = await manageEnsurePlugin(() {});
+    print("Plugin Res: $res, ismounted ${context.mounted}");
+    if (res && context.mounted) {
+      Navigator.pushNamed(context, route);
+    }
+  }
+
+  static Future<void> onDetectionPlugin(
+    BuildContext context,
+    String route,
+  ) async {
+    final res = await detectionEnsurePlugin(() {});
     print("Plugin Res: $res, ismounted ${context.mounted}");
     if (res && context.mounted) {
       Navigator.pushNamed(context, route);
