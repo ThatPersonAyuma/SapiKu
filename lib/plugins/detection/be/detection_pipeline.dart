@@ -7,7 +7,7 @@ import 'dart:math' as math;
 
 import 'package:path_provider/path_provider.dart';
 import 'package:sapiku/plugins/detection/be/be_app.dart';
-
+import 'package:sapiku/utils/utils.dart';
 
 class DetectionResult {
   final Rect boundingBox;
@@ -30,38 +30,56 @@ class ProfilingMetrics {
   int totalTimeMs = 0;
 }
 
+enum DetectionCondition { success, noBoundingBox, noDetection }
+
 class CascadePipeline {
   IsolateInterpreter? _yoloIsolate;
   IsolateInterpreter? _mobileNetIsolate;
   List<String> _labels = [];
 
+  /// Used for thressholding YOLO bounding box
+  static const double yoloThreshold = 0.01;
+
+  /// Thresshold for classification.
+  /// Used for identify if classification prediction is good enough
+  static const double classificThresshold = 0.85;
+
+  /// PlaceHolder label for label that failed to be detected by MobileNetv3
+  static const String failedClassific = "Gagal Mendeteksi";
+
   Future<void> initialize() async {
     // final yoloInterp = await Interpreter.fromAsset('assets/models/yolov8n_f32.tflite');
     final destinationDir = await getApplicationDocumentsDirectory();
-    final yoloInterp = Interpreter.fromFile(File('${destinationDir.path}/$detectionName/$modelFolderPrefix/$yoloFileName'));
+    final yoloInterp = Interpreter.fromFile(
+      File(
+        '${destinationDir.path}/$detectionName/$modelFolderPrefix/$yoloFileName',
+      ),
+    );
     _yoloIsolate = await IsolateInterpreter.create(address: yoloInterp.address);
-    
-    // final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3_lumpy_f32.tflite');
-    final mobileNetInterp = Interpreter.fromFile(File('${destinationDir.path}/$detectionName/$modelFolderPrefix/$mobNetFileName'));
-    _mobileNetIsolate = await IsolateInterpreter.create(address: mobileNetInterp.address);
 
-    _labels = [
-      "healthy_cowhide",
-      "lumpy",
-      "mange",
-      "pediculosis",
-      "ringworm",
-    ];
+    // final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3_lumpy_f32.tflite');
+    final mobileNetInterp = Interpreter.fromFile(
+      File(
+        '${destinationDir.path}/$detectionName/$modelFolderPrefix/$mobNetFileName',
+      ),
+    );
+    _mobileNetIsolate = await IsolateInterpreter.create(
+      address: mobileNetInterp.address,
+    );
+
+    _labels = ["healthy_cowhide", "lumpy", "mange", "pediculosis", "ringworm"];
 
     final options = InterpreterOptions();
-      // Aktifkan GPU Delegate (Android/iOS)
-      if (Platform.isAndroid) {
-        options.addDelegate(GpuDelegateV2());
-      } else if (Platform.isIOS) {
-        options.addDelegate(GpuDelegate());
-      }
+    // Aktifkan GPU Delegate (Android/iOS)
+    if (Platform.isAndroid) {
+      options.addDelegate(GpuDelegateV2());
+    } else if (Platform.isIOS) {
+      options.addDelegate(GpuDelegate());
+    }
   }
 
+  /// Proces Image. Return map.
+  /// Return empty if failed to get image or there is no bounding box detected by YOLO that satisfy the yoloThreeshold
   Future<Map<String, dynamic>> processImage(File imageFile) async {
     final metrics = ProfilingMetrics();
     final totalWatch = Stopwatch()..start();
@@ -69,8 +87,13 @@ class CascadePipeline {
     // 1. Decode gambar
     final Uint8List bytes = await imageFile.readAsBytes();
     final img.Image? originalImg = img.decodeImage(bytes);
-    if (originalImg == null) return {'results': <DetectionResult>[], 'metrics': metrics};
-
+    if (originalImg == null) {
+      PopUpMessage.showOkMessage(
+        PopUpTitle.error,
+        "Gagal pada saat memproses gambar.",
+      );
+      return {'results': <DetectionResult>[], 'metrics': metrics};
+    }
     // 2. Preprocess YOLOv8 (640x640)
     final yoloInputImg = img.copyResize(originalImg, width: 640, height: 640);
     final yoloInputBuffer = _imageToFloat32Buffer(yoloInputImg, 640, 640);
@@ -84,11 +107,14 @@ class CascadePipeline {
 
     // 4. Extract ROI & Penerapan NMS
     List<Map<String, dynamic>> allDetections = _parseYoloOutput(
-      yoloOutput[0], 
-      originalImg.width, 
-      originalImg.height
+      yoloOutput[0],
+      originalImg.width,
+      originalImg.height,
     );
-
+    if (allDetections.isEmpty) {
+      // Meaning there is no yolo bounding box detectedd that satisfy. Show error
+      return {'results': <DetectionResult>[], 'metrics': metrics};
+    }
     // 5. Ambil Top 2 ROI Unik Teratas
     final top2Detections = allDetections.take(2).toList();
     List<DetectionResult> finalResults = [];
@@ -116,12 +142,19 @@ class CascadePipeline {
         height: cropH,
       );
 
-      img.Image resizedRoi = img.copyResize(croppedRoi, width: 224, height: 224);
+      img.Image resizedRoi = img.copyResize(
+        croppedRoi,
+        width: 224,
+        height: 224,
+      );
       Float32List mobileNetInput = _imageToFloat32Buffer(resizedRoi, 224, 224);
       cropWatch.stop();
 
       mobileNetWatch.start();
-      var clsOutput = List.filled(1 * _labels.length, 0.0).reshape([1, _labels.length]);
+      var clsOutput = List.filled(
+        1 * _labels.length,
+        0.0,
+      ).reshape([1, _labels.length]);
       await _mobileNetIsolate!.run(mobileNetInput, clsOutput);
       mobileNetWatch.stop();
 
@@ -134,18 +167,23 @@ class CascadePipeline {
           bestClassIdx = i;
         }
       }
+      final label = (maxScore >= classificThresshold)
+          ? _labels[bestClassIdx]
+          : failedClassific;
 
-      finalResults.add(DetectionResult(
-        boundingBox: box,
-        yoloScore: yoloScore,
-        label: _labels[bestClassIdx],
-        classificationScore: maxScore,
-      ));
+      finalResults.add(
+        DetectionResult(
+          boundingBox: box,
+          yoloScore: yoloScore,
+          label: label,
+          classificationScore: maxScore,
+        ),
+      );
     }
 
     metrics.cropTimeMs = cropWatch.elapsedMilliseconds;
     metrics.mobileNetTimeMs = mobileNetWatch.elapsedMilliseconds;
-    
+
     totalWatch.stop();
     metrics.totalTimeMs = totalWatch.elapsedMilliseconds;
 
@@ -172,42 +210,50 @@ class CascadePipeline {
   }
 
   // Parsing Dinamis Output YOLOv8 [9, 8400]
-  
 
-  // Fungsi pembantu Sigmoid jika model mengeluarkan raw logits
+  /// Fungsi pembantu Sigmoid jika model mengeluarkan raw logits
   double _sigmoid(double x) => 1.0 / (1.0 + math.exp(-x));
 
-  List<Map<String, dynamic>> _parseYoloOutput(List<List<double>> output, int imgW, int imgH) {
+  /// Parsing YOLO output also applay threshold.
+  /// If List empty menaing there is no bounding box that satisfy the yoloThrehold
+  List<Map<String, dynamic>> _parseYoloOutput(
+    List<List<double>> output,
+    int imgW,
+    int imgH,
+  ) {
     List<Map<String, dynamic>> rawBoxes = [];
     // int numChannels = output.length; // 5 kanal
-    
+
     // 1. Turunkan threshold awal untuk inspeksi deteksi
-    double threshold = 0.01; // 
+
     double maxScoreFoundInModel = 0.0;
 
     for (int i = 0; i < 8400; i++) {
       double rawScore = output[4][i];
-      
+
       // Terapkan Sigmoid jika nilai score di luar rentang [0.0, 1.0]
-      double score = (rawScore < 0.0 || rawScore > 1.0) ? _sigmoid(rawScore) : rawScore;
+      double score = (rawScore < 0.0 || rawScore > 1.0)
+          ? _sigmoid(rawScore)
+          : rawScore;
 
       if (score > maxScoreFoundInModel) {
         maxScoreFoundInModel = score;
       }
 
-      if (score > threshold) {
+      if (score > yoloThreshold) {
         double rawCx = output[0][i];
         double rawCy = output[1][i];
         double rawW = output[2][i];
         double rawH = output[3][i];
 
         // Detect Otomatis: Apakah koordinat piksel (0-640) atau ternormalisasi (0-1)
-        bool isNormalized = rawCx <= 1.0 && rawCy <= 1.0 && rawW <= 1.0 && rawH <= 1.0;
+        bool isNormalized =
+            rawCx <= 1.0 && rawCy <= 1.0 && rawW <= 1.0 && rawH <= 1.0;
 
         double cx = isNormalized ? rawCx * imgW : (rawCx / 640.0) * imgW;
         double cy = isNormalized ? rawCy * imgH : (rawCy / 640.0) * imgH;
-        double w  = isNormalized ? rawW * imgW  : (rawW / 640.0) * imgW;
-        double h  = isNormalized ? rawH * imgH  : (rawH / 640.0) * imgH;
+        double w = isNormalized ? rawW * imgW : (rawW / 640.0) * imgW;
+        double h = isNormalized ? rawH * imgH : (rawH / 640.0) * imgH;
 
         Rect rect = Rect.fromLTWH(cx - (w / 2), cy - (h / 2), w, h);
         rawBoxes.add({'box': rect, 'score': score});
@@ -215,20 +261,28 @@ class CascadePipeline {
     }
 
     // Debug Log ke Konsol untuk memastikan skor tertinggi yang ditemukan YOLO
-    debugPrint("YOLO Max Score Found: ${maxScoreFoundInModel.toStringAsFixed(4)} | Total Deteksi Lolos: ${rawBoxes.length}");
+    debugPrint(
+      "YOLO Max Score Found: ${maxScoreFoundInModel.toStringAsFixed(4)} | Total Deteksi Lolos: ${rawBoxes.length}",
+    );
 
     return _applyNMS(rawBoxes, iouThreshold: 0.45);
   }
 
   // Non-Maximum Suppression (NMS)
-  List<Map<String, dynamic>> _applyNMS(List<Map<String, dynamic>> boxes, {required double iouThreshold}) {
-    boxes.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
+  List<Map<String, dynamic>> _applyNMS(
+    List<Map<String, dynamic>> boxes, {
+    required double iouThreshold,
+  }) {
+    boxes.sort(
+      (a, b) => (b['score'] as double).compareTo(a['score'] as double),
+    );
     List<Map<String, dynamic>> selected = [];
 
     for (var box in boxes) {
       bool keep = true;
       for (var sel in selected) {
-        if (_calculateIoU(box['box'] as Rect, sel['box'] as Rect) > iouThreshold) {
+        if (_calculateIoU(box['box'] as Rect, sel['box'] as Rect) >
+            iouThreshold) {
           keep = false;
           break;
         }
@@ -246,5 +300,34 @@ class CascadePipeline {
     double interArea = intersection.width * intersection.height;
     double unionArea = (a.width * a.height) + (b.width * b.height) - interArea;
     return unionArea <= 0 ? 0.0 : interArea / unionArea;
+  }
+
+  /// Use for get the Text Showed in the detetection result.
+  static String getTextResult(DetectionResult detectionResult) {
+    if (detectionResult.label == failedClassific) {
+      return "Maaf, Sistem kurang yakin terhadap hasil. Disarankan menggunakan gambar yang lebih jelas.";
+    } else {
+      return "Sapi Terdeteksi Mengalami Penyakit ${detectionResult.label} pada Bagian Kulit";
+    }
+  }
+
+  /// Query deases class and get its solution.
+  /// Consider to cache this because, this method need to do database query.
+  static Future<String> getCareMethod(DetectionResult detectionResult) async {
+    if (detectionResult.label == failedClassific) {
+      return "Deteksi gagal. Maka dari itu belum ada penanganan yang ada.";
+    } else {
+      final res = await Deases.getByName(detectionResult.label);
+      if (res == null) {
+        return "Data deases tidak ditemukan.";
+      }
+      return res.solution;
+    }
+  }
+
+  /// Method to check wheter detection failed or not.
+  /// You can also manually check by checking if the dectionresult list is not empty.
+  static bool isSucces(List<DetectionResult> finalResults) {
+    return finalResults.isNotEmpty;
   }
 }
