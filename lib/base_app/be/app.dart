@@ -117,8 +117,7 @@ class PluginHandler {
   /// Meaning it will lost all of the data that known by system.
   /// Excluding report because it is not tracked
   static Future<void> deleteManagementPlugin() async {
-    // For now just change is_setup to false;
-    final plugin = await Plugin.getFromByName("management");
+    final plugin = await Plugin.getFromByName(managementName);
     if (plugin == null) {
       PopUpMessage.showOkMessage(
         PopUpTitle.error,
@@ -126,9 +125,18 @@ class PluginHandler {
       );
       return;
     }
-    // Here we should delete all of the data.
+    // Delete all of the management data
+    final bool isDeleted = await managementDelete();
+    if (!isDeleted) {
+      PopUpMessage.showOkMessage(PopUpTitle.error, "Gagal menghapus data Plugin Pencatatan.");
+      return;
+    }
     plugin.isSetup = false;
     await plugin.saveToDb();
+    PopUpMessage.showOkMessage(
+      PopUpTitle.success,
+      "Plugin Pencatatan berhasil dihapus.",
+    );
   }
 
   /// This called when the plugin management button get pressed on plugin menu
@@ -152,6 +160,32 @@ class PluginHandler {
     if (res && context.mounted) {
       Navigator.pushNamed(context, route);
     }
+  }
+
+  /// Delete all data for detection.
+  /// Meaning it will lost all of the data that known by system.
+  /// Including the model
+  static Future<void> deleteDetectionPlugin() async {
+    final plugin = await Plugin.getFromByName(detectionName);
+    if (plugin == null) {
+      PopUpMessage.showOkMessage(
+        PopUpTitle.error,
+        "Data plugin Deteksi tidak ditemukan.",
+      );
+      return;
+    }
+    // Delete all of the management data
+    final bool isDeleted = await detectionDelete();
+    if (!isDeleted) {
+      PopUpMessage.showOkMessage(PopUpTitle.error, "Gagal menghapus data Plugin Deteksi.");
+      return;
+    }
+    plugin.isSetup = false;
+    await plugin.saveToDb();
+    PopUpMessage.showOkMessage(
+      PopUpTitle.success,
+      "Plugin Deteksi berhasil dihapus.",
+    );
   }
 
   static Future<void> onPluginMenu(BuildContext context, String route) async {

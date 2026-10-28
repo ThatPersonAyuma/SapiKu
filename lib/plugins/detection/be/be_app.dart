@@ -226,6 +226,28 @@ Future<void> detectionSeeder(Batch batch, VoidCallback callback) async {
   });
 }
 
+Future<void> detectionDeleteAssets() async {
+  await FileHandler.deleteDirectory("$detectionName/$modelFolderPrefix");
+  await FileHandler.deleteDirectory(DeasesDetection.photoDirectory);
+}
+
+Future<bool> detectionDeleteTables() async {
+  final Batch? batch = LocalDBHandler.getBatch();
+  if (batch == null) return false;
+  batch.rawQuery("DROP TABLE IF EXISTS ${Deases.tableName};");
+  batch.rawQuery("DROP TABLE IF EXISTS ${DeasesDetection.tableName};");
+  batch.rawQuery("DROP TABLE IF EXISTS ${Scan.tableName};");
+  batch.commit(noResult: true);
+  return true;
+}
+
+Future<bool> detectionDelete() async {
+  final bool isDeleted = await detectionDeleteTables();
+  if (!isDeleted) return false;
+  await detectionDeleteAssets();
+  return true;
+}
+
 // #endregion
 
 /// Class Deases represent the cow skin deases.
@@ -416,7 +438,7 @@ class DeasesDetection {
 
   /// Create DeasesDetection Object and Save It to the database.
   /// Return null if failed. This is prefered because it use
-  /// DetectionResult than ScanComponent which already compatibe with detection pipeline 
+  /// DetectionResult than ScanComponent which already compatibe with detection pipeline
   static Future<DeasesDetection?> create(
     XFile imgFile,
     List<DetectionResult> detections,
