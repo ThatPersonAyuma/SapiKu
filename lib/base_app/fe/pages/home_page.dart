@@ -180,6 +180,8 @@ class _HomePage extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    bool hasDownloadedPlugins = pluginsData.isNotEmpty;
+    
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const SapikuAppBar(),
@@ -188,10 +190,63 @@ class _HomePage extends State<HomePage> {
           : AppBackground(
               child: ListView.separated(
                 padding: const EdgeInsets.only(left: 14, right: 14, top: 140),
-                itemCount: plugins.length,
+                itemCount: plugins.length + (hasDownloadedPlugins ? 0 : 1),
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (_, i) {
-                  final p = plugins[i];
+                  if (!hasDownloadedPlugins && i == 0) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                      ),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            height: 120,
+                            child: Stack(
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Image.asset(
+                                    'assets/images/bg-sapi.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 20,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 80,
+                                      height: 80,
+                                      child: Image.asset('assets/images/logo.png'),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              'SAPIKU adalah sebuah aplikasi yang ditujukan untuk membantu bagian pencatatan kasir dan juga dapat membantu untuk mendeteksi penyakit lumpy pada kulit sapi dengan menggunakan kamera bawaan.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black87,
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  
+                  final pluginIndex = hasDownloadedPlugins ? i : i - 1;
+                  final p = plugins[pluginIndex];
                   return PluginCard(
                     title: p.title,
                     subtitle: p.subtitle,
