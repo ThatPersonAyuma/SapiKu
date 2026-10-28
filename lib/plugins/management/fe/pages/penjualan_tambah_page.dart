@@ -17,6 +17,7 @@ class PenjualanTambahPage extends StatefulWidget {
 
 class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
   DateTime _date = DateTime.now();
+  bool _useTodayDate = true;
   List<Product> _products = [];
   bool _productsLoading = true;
   bool _isSaving = false;
@@ -38,13 +39,32 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
     });
   }
 
-  String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   String _rp(int v) => 'Rp ${v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
   int get _total => _items.fold(0, (s, e) => s + e.qty * e.product.price.toInt());
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime(2100));
-    if (picked != null) setState(() => _date = picked);
+  Future<void> _pickDateTime() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate != null) {
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(_date),
+      );
+      if (pickedTime != null) {
+        setState(() => _date = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        ));
+      }
+    }
   }
 
   void _inc(int i) => setState(() => _items[i] = (product: _items[i].product, qty: _items[i].qty + 1));
@@ -69,9 +89,10 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
     }
     setState(() => _isSaving = true);
     try {
+      final dateToSave = _useTodayDate ? DateTime.now() : _date;
       final tx = await Transaction.create(
         [for (final it in _items) TransactionDetailInsertComponent(it.product.id, it.qty)],
-        date: _date,
+        date: dateToSave,
       );
       if (!mounted) return;
       if (tx != null) {
@@ -217,12 +238,42 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Tanggal Penjualan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)), Icon(Icons.calendar_today_rounded, size: 20, color: Colors.grey.shade600)]),
                   const SizedBox(height: 10),
                   InkWell(
-                    onTap: _pickDate,
+                    onTap: _useTodayDate ? null : _pickDateTime,
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8), color: Colors.grey.shade50),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(_fmtDate(_date), style: const TextStyle(fontSize: 14, color: Colors.black87)), Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade600)]),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: _useTodayDate ? Colors.grey.shade200 : Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                        color: _useTodayDate ? Colors.grey.shade100 : Colors.grey.shade50,
+                      ),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        Text(
+                          _fmtDate(_useTodayDate ? DateTime.now() : _date),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _useTodayDate ? Colors.grey.shade500 : Colors.black87,
+                          ),
+                        ),
+                        Icon(Icons.keyboard_arrow_down_rounded, color: _useTodayDate ? Colors.grey.shade400 : Colors.grey.shade600),
+                      ]),
+                    ),
+                  ),
+                  //                   const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => setState(() => _useTodayDate = !_useTodayDate),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: _useTodayDate,
+                          onChanged: (value) => setState(() => _useTodayDate = value ?? true),
+                          activeColor: AppColors.darkCard,
+                        ),
+                        const Text(
+                          'Gunakan tanggal hari ini',
+                          style: TextStyle(fontSize: 14, color: Colors.black87),
+                        ),
+                      ],
                     ),
                   ),
                 ]),
