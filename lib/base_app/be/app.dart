@@ -67,12 +67,6 @@ class PluginHandler {
       if (isDownload) {
         callback();
         final downRes = await getDetectionPlugin(callback);
-        if (downRes) {
-          PopUpMessage.showOkMessage(
-            PopUpTitle.success,
-            "Plugin Deteksi Penyakit berhasil ditambahkan.",
-          );
-        }
         return downRes;
       } else {
         return false;
@@ -97,12 +91,6 @@ class PluginHandler {
       if (isDownload) {
         callback();
         final downRes = await getManagementPlugin(callback);
-        if (downRes) {
-          PopUpMessage.showOkMessage(
-            PopUpTitle.success,
-            "Plugin Pencatatan berhasil ditambahkan.",
-          );
-        }
         return downRes;
       } else {
         return false;

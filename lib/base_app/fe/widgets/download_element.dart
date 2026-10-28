@@ -11,7 +11,7 @@ class DownloadCard extends StatefulWidget {
   final String name;
   final String subtitle;
   final IconData icon;
-  final Future<void> Function(VoidCallback) downloadCallback;
+  final Future<bool> Function(VoidCallback) downloadCallback;
   final Future<void> Function() removeCallback;
   Plugin? plugin;
   DownloadCard({
@@ -51,15 +51,24 @@ class _DownloadCard extends State<DownloadCard> {
     setState(() {
       currentProgress = 0;
     });
-    await widget.downloadCallback(downloadProgress);
+    final downloadSuccess = await widget.downloadCallback(downloadProgress);
     setState(() {
       currentProgress = maxProgress;
     });
+    if (!downloadSuccess) {
+      setState(() {
+        _isDownloading = false;
+      });
+      return;
+    }
     final res = await Plugin.getFromByName(widget.name);
     setState(() {
       widget.plugin = res;
       _isDownloading = false;
     });
+    if (mounted) {
+      await PopUpMessage.showDownloadSuccessMessage(widget.title, context);
+    }
   }
 
   Future<void> delete() async {

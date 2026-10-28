@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/base_app/fe/pages/home_page.dart';
 import 'package:sapiku/plugins/detection/fe/pages/camera_page.dart';
+import 'package:sapiku/plugins/detection/fe/pages/detection_failure_page.dart';
 import 'package:sapiku/plugins/detection/fe/pages/detection_history_page.dart';
 import 'package:sapiku/plugins/detection/fe/pages/detection_menu_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/management_menu_page.dart';
@@ -17,6 +18,7 @@ class AppRouter {
   static const String home = '/';
   static const String detection = '/detection';
   static const String detectionCamera = '/detection/camera';
+  static const String detectionFailure = '/detection/failure';
   static const String detectionHistory = '/detection/history';
   static const String management = '/management';
   static const String managementPencatatan = '/management/pencatatan';
@@ -36,6 +38,8 @@ class AppRouter {
         return _slide(const DetectionMenuPage(), s);
       case detectionCamera:
         return _slide(const CameraPage(), s);
+      case detectionFailure:
+        return _slide(const DetectionFailurePage(), s);
       case detectionHistory:
         return _slide(const DetectionHistoryPage(), s);
       case management:

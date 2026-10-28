@@ -43,8 +43,8 @@ class DetectionResultPage extends StatelessWidget {
             const SizedBox(height: 16),
             _ResultSection(results: results),
             const SizedBox(height: 12),
-            _MetricsCard(metrics: metrics),
-            const SizedBox(height: 16),
+            // _MetricsCard(metrics: metrics),
+            // const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -141,40 +141,61 @@ class _ResultSection extends StatelessWidget {
         ),
       );
     }
-    return Column(
-      children: results
-          .map(
-            (r) => Card(
-              color: Colors.white,
-              child: ListTile(
-                title: Text(
-                  r.label,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  'YOLO ${(r.yoloScore * 100).toStringAsFixed(1)}% • Klasifikasi ${(r.classificationScore * 100).toStringAsFixed(1)}%',
-                ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E2E2E),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${(r.classificationScore * 100).toStringAsFixed(0)}%',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+    final primary = results.first;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Hasil Deteksi :',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2E2E2E),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: Text(
+              '${(primary.classificationScore * 100).toStringAsFixed(0)}%',
+              style: const TextStyle(
+                fontSize: 38,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: primary.classificationScore,
+              minHeight: 15,
+              backgroundColor: Colors.lightGreen[300],
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Colors.green,
               ),
             ),
-          )
-          .toList(),
+          ),
+          const SizedBox(height: 16),
+          // Result text
+          Text(
+            CascadePipeline.getTextResult(primary),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF158900),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

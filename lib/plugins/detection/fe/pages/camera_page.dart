@@ -5,6 +5,7 @@ import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
 import 'package:sapiku/plugins/detection/fe/pages/detection_result_page.dart';
+import 'package:sapiku/plugins/detection/fe/pages/detection_failure_page.dart';
 import 'package:sapiku/plugins/detection/fe/providers/detection_provider.dart';
 import 'package:sapiku/plugins/detection/fe/widgets/bounding_box_painter.dart';
 
@@ -48,6 +49,16 @@ class _CameraPageState extends State<CameraPage> {
     if (entry == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_provider.error ?? 'Deteksi gagal')),
+      );
+      return;
+    }
+    // Check if detection succeeded
+    if (entry.results.isEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DetectionFailurePage(),
+        ),
       );
       return;
     }
