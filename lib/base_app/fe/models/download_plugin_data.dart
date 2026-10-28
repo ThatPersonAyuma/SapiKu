@@ -6,7 +6,7 @@ class DownloadPluginData {
     final String name;
     final String subtitle;
     final IconData icon;
-    final Future<void> Function(VoidCallback) downloadCallback;
+    final Future<bool> Function(VoidCallback) downloadCallback;
     final Future<void> Function() removeCallback;
     Plugin? plugin;
     DownloadPluginData({
