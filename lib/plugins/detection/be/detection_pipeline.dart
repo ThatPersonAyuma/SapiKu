@@ -92,7 +92,12 @@ class CascadePipeline {
         PopUpTitle.error,
         "Gagal pada saat memproses gambar.",
       );
-      return {'results': <DetectionResult>[], 'metrics': metrics};
+      return {
+        'results': <DetectionResult>[],
+        'metrics': metrics,
+        'imageWidth': 0,
+        'imageHeight': 0,
+      };
     }
     // 2. Preprocess YOLOv8 (640x640)
     final yoloInputImg = img.copyResize(originalImg, width: 640, height: 640);
@@ -113,7 +118,12 @@ class CascadePipeline {
     );
     if (allDetections.isEmpty) {
       // Meaning there is no yolo bounding box detectedd that satisfy. Show error
-      return {'results': <DetectionResult>[], 'metrics': metrics};
+      return {
+        'results': <DetectionResult>[],
+        'metrics': metrics,
+        'imageWidth': originalImg.width,
+        'imageHeight': originalImg.height,
+      };
     }
     // 5. Ambil Top 2 ROI Unik Teratas
     final top2Detections = allDetections.take(2).toList();

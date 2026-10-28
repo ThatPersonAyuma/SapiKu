@@ -34,7 +34,9 @@ class DetectionProvider extends ChangeNotifier {
       final out = await pipeline.processImage(file);
       results = (out['results'] as List).cast<DetectionResult>();
       metrics = out['metrics'] as ProfilingMetrics;
-      imageSize = Size((out['imageWidth'] as int).toDouble(), (out['imageHeight'] as int).toDouble());
+      final imageWidth = out['imageWidth'] as int? ?? 0;
+      final imageHeight = out['imageHeight'] as int? ?? 0;
+      imageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
       lastImage = file;
       final entry = DetectionHistory(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
