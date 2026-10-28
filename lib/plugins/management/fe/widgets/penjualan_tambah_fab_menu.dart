@@ -61,8 +61,8 @@ class _PenjualanTambahFabMenuState extends State<PenjualanTambahFabMenu> with Si
             children: [
               _act(label: 'Input Manual', icon: Icons.edit_rounded, onTap: () { _close(); widget.onInputManual?.call(); }),
               const SizedBox(height: 10),
-              _act(label: 'QR dari Galeri', icon: Icons.photo_library_rounded, onTap: () { _close(); widget.onQrGallery?.call(); }),
-              const SizedBox(height: 10),
+              // _act(label: 'QR dari Galeri', icon: Icons.photo_library_rounded, onTap: () { _close(); widget.onQrGallery?.call(); }),
+              // const SizedBox(height: 10),
               _act(label: 'Scan QR', icon: Icons.qr_code_scanner_rounded, onTap: () { _close(); widget.onScanQr?.call(); }),
               const SizedBox(height: 12),
               Material(
