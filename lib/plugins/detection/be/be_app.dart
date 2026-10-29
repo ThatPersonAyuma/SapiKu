@@ -28,7 +28,7 @@ const imageName2 = "1_jpg.rf.2c3cbd206bd74b6bdd9272dcd85ce73e.jpg";
 
 // #endregion
 
-Future<bool> detectionSetup(VoidCallback callback) async {
+Future<bool> detectionSetup(VoidCallback callback, String version) async {
   print("Setup");
   final res = await LocalDBHandler.runRawSelectQuery(
     "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
@@ -60,10 +60,10 @@ Future<bool> detectionSetup(VoidCallback callback) async {
   } else {
     await LocalDBHandler.runRawInsertQuery(
       """
-      INSERT INTO plugins (name, is_setup)
-      values (?, ?);
+      INSERT INTO plugins (name, is_setup, version)
+      values (?, ?, ?);
       """,
-      [detectionName, boolToInt(true)],
+      [detectionName, boolToInt(true), version],
     );
   }
   print("Success Setup");
@@ -75,14 +75,14 @@ Future<void> detectionCreateTables(Batch batch) async {
   batch.execute("""
     CREATE TABLE IF NOT EXISTS ${Deases.tableName} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE,
+      name VARCHAR(255) NOT NULL UNIQUE,
       solution TEXT NOT NULL
     );
   """);
   batch.execute("""
     CREATE TABLE IF NOT EXISTS ${DeasesDetection.tableName} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
+      name VARCHAR(255) NOT NULL,
       datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       image_path TEXT NOT NULL
     );
@@ -385,6 +385,10 @@ class DeasesDetection {
   ) async {
     final path = await FileHandler.storeImage(photoDirectory, imgFile, null);
     name ??= DateTime.now().toIso8601String();
+    if (name.length > 255) {
+      await PopUpMessage.showOkMessage(PopUpTitle.warning, "Nama deteksi harus kurang dari 255 karakter");
+      return null;
+    }
     final id = await LocalDBHandler.runRawInsertQuery(
       """
       INSERT INTO $tableName (name, image_path)

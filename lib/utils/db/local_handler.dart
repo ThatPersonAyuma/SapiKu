@@ -31,7 +31,7 @@ class LocalDBHandler {
         // Create Config/Default table
 
         return db.execute(
-          'CREATE TABLE ${Plugin.tableName}(id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, is_setup BOOL DEFAULT FALSE)',
+          'CREATE TABLE ${Plugin.tableName}(id INTEGER PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, is_setup BOOL DEFAULT FALSE, version VARCHAR(255) NOT NULL)',
         );
       },
     );
@@ -115,14 +115,16 @@ class Plugin {
   int id;
   String name;
   bool isSetup;
+  String version;
 
-  Plugin(this.id, this.name, this.isSetup);
+  Plugin(this.id, this.name, this.isSetup, this.version);
 
   static Plugin createFromMap(Map<String, Object?> map) {
     return Plugin(
       map['id'] as int,
       map['name'] as String,
-      (map['is_setup'] as int)==1,
+      (map['is_setup'] as int) == 1,
+      map['version'] as String
     );
   }
 

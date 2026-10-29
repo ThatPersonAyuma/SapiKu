@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_litert/flutter_litert.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:sapiku/core/fe/theme/app_colors.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
@@ -11,9 +12,10 @@ class DownloadCard extends StatefulWidget {
   final String name;
   final String subtitle;
   final IconData icon;
-  final Future<bool> Function(VoidCallback) downloadCallback;
+  final Future<bool> Function(VoidCallback, String) downloadCallback;
   final Future<void> Function() removeCallback;
   Plugin? plugin;
+  final String version;
   DownloadCard({
     super.key,
     required this.title,
@@ -23,6 +25,7 @@ class DownloadCard extends StatefulWidget {
     required this.downloadCallback,
     required this.removeCallback,
     this.plugin,
+    required this.version
   });
 
   @override
@@ -52,7 +55,10 @@ class _DownloadCard extends State<DownloadCard> {
     setState(() {
       currentProgress = 0;
     });
-    final downloadSuccess = await widget.downloadCallback(downloadProgress);
+    final downloadSuccess = await widget.downloadCallback(
+      downloadProgress,
+      widget.version,
+    );
     setState(() {
       currentProgress = maxProgress;
     });
@@ -154,10 +160,12 @@ class _DownloadCard extends State<DownloadCard> {
                                     style: ElevatedButton.styleFrom(
                                       shape: StadiumBorder(),
                                       foregroundColor: Colors.black,
-                                      backgroundColor: _isDeleting ? Colors.red : Colors.green,
+                                      backgroundColor: _isDeleting
+                                          ? Colors.red
+                                          : Colors.green,
                                     ),
-                                    child: _isDeleting ? 
-                                        const Text('Menghapus')
+                                    child: _isDeleting
+                                        ? const Text('Menghapus')
                                         : const Text("Terunduh"),
                                   )
                                 : ElevatedButton(
@@ -169,8 +177,8 @@ class _DownloadCard extends State<DownloadCard> {
                                       foregroundColor: Colors.black,
                                     ),
                                     child: _isDownloading
-                                          ? const Text("Mengunduh")
-                                          : const Text("Unduh"),
+                                        ? const Text("Mengunduh")
+                                        : const Text("Unduh"),
                                   ),
                           ],
                         ),
