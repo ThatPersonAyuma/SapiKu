@@ -8,12 +8,12 @@ class AvailablePluginData {
   final IconData icon;
   final IconData subIcon;
   final PluginCallback? onTap;
-  const AvailablePluginData(
-    {required this.title,
+  const AvailablePluginData({
+    required this.title,
     required this.subtitle,
     required this.route,
     required this.icon,
     required this.subIcon,
-    required this.onTap,}
-  );
+    required this.onTap,
+  });
 }

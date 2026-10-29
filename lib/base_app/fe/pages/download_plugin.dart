@@ -62,7 +62,8 @@ class _DownloadPage extends State<DownloadPage> {
               icon: CustomIcons.basil_book_solid,
               downloadCallback: PluginHandler.manageEnsurePlugin,
               removeCallback: PluginHandler.deleteManagementPlugin,
-              plugin: await Plugin.getFromByName(data.name)
+              plugin: await Plugin.getFromByName(data.name),
+              version: data.version
             ),
           );
           break;
@@ -75,7 +76,8 @@ class _DownloadPage extends State<DownloadPage> {
               icon: CustomIcons.griddy_icons_cow_filled,
               downloadCallback: PluginHandler.detectionEnsurePlugin,
               removeCallback: PluginHandler.deleteDetectionPlugin,
-              plugin: await Plugin.getFromByName(data.name)
+              plugin: await Plugin.getFromByName(data.name),
+              version: data.version
             ),
           );
           break;
@@ -107,6 +109,7 @@ class _DownloadPage extends State<DownloadPage> {
                     downloadCallback: p.downloadCallback,
                     removeCallback: p.removeCallback,
                     plugin: p.plugin,
+                    version: p.version
                   );
                 },
               ),

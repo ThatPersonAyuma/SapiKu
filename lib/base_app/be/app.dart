@@ -15,7 +15,7 @@ class PluginHandler {
     return [for (final map in res) Plugin.createFromMap(map)];
   }
 
-  static Future<bool> getManagementPlugin(VoidCallback callback) async {
+  static Future<bool> getManagementPlugin(VoidCallback callback, String version) async {
     // Start of Before Update With ShoreBird
     if (!await canUpdatePlugin()) {
       return false;
@@ -24,7 +24,7 @@ class PluginHandler {
     // End of Before Update With ShoreBird
     // Start of After Update With ShoreBird
     callback();
-    return await managementSetup(callback);
+    return await managementSetup(callback, version);
     // End of After Update With ShoreBird
   }
 
@@ -40,7 +40,7 @@ class PluginHandler {
     return true;
   }
 
-  static Future<bool> getDetectionPlugin(VoidCallback callback) async {
+  static Future<bool> getDetectionPlugin(VoidCallback callback, String version) async {
     // Start of Before Update With ShoreBird
     if (!await canUpdatePlugin()) {
       return false;
@@ -49,11 +49,11 @@ class PluginHandler {
     // End of Before Update With ShoreBird
     // Start of After Update With ShoreBird
     callback();
-    return await detectionSetup(callback);
+    return await detectionSetup(callback, version);
     // End of After Update With ShoreBird
   }
 
-  static Future<bool> detectionEnsurePlugin(VoidCallback callback) async {
+  static Future<bool> detectionEnsurePlugin(VoidCallback callback, String version) async {
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM plugins WHERE name = ?",
       [detectionName],
@@ -66,7 +66,7 @@ class PluginHandler {
       );
       if (isDownload) {
         callback();
-        final downRes = await getDetectionPlugin(callback);
+        final downRes = await getDetectionPlugin(callback, version);
         return downRes;
       } else {
         return false;
@@ -77,7 +77,7 @@ class PluginHandler {
     return true;
   }
 
-  static Future<bool> manageEnsurePlugin(VoidCallback callback) async {
+  static Future<bool> manageEnsurePlugin(VoidCallback callback, String version) async {
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM plugins WHERE name = ?",
       [managementName],
@@ -90,7 +90,7 @@ class PluginHandler {
       );
       if (isDownload) {
         callback();
-        final downRes = await getManagementPlugin(callback);
+        final downRes = await getManagementPlugin(callback, version);
         return downRes;
       } else {
         return false;
@@ -132,7 +132,7 @@ class PluginHandler {
     BuildContext context,
     String route,
   ) async {
-    final res = await manageEnsurePlugin(() {});
+    final res = await manageEnsurePlugin(() {},"");
     if (res && context.mounted) {
       Navigator.pushNamed(context, route);
     }
@@ -142,7 +142,7 @@ class PluginHandler {
     BuildContext context,
     String route,
   ) async {
-    final res = await detectionEnsurePlugin(() {});
+    final res = await detectionEnsurePlugin(() {},"");
     print("Plugin Res: $res, ismounted ${context.mounted}");
     if (res && context.mounted) {
       Navigator.pushNamed(context, route);

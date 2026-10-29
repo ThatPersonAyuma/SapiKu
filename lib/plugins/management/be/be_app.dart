@@ -27,7 +27,7 @@ import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 // #region Temporary
 /// Simulate setup in download plugin, used in before main
 const managementName = "management";
-Future<bool> managementSetup(VoidCallback callback) async {
+Future<bool> managementSetup(VoidCallback callback, String version) async {
   final res = await LocalDBHandler.runRawSelectQuery(
     "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
     [managementName],
@@ -59,10 +59,10 @@ Future<bool> managementSetup(VoidCallback callback) async {
   } else {
     await LocalDBHandler.runRawInsertQuery(
       """
-      INSERT INTO plugins (name, is_setup)
-      values (?, ?);
+      INSERT INTO plugins (name, is_setup, version)
+      values (?, ?, ?);
       """,
-      [managementName, boolToInt(true)],
+      [managementName, boolToInt(true), version],
     );
   }
   callback();
@@ -74,7 +74,7 @@ Future<void> managementCreateTables(Batch batch) async {
   batch.execute("""
     CREATE TABLE IF NOT EXISTS ${Product.tableName} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
+      name VARCHAR(255) NOT NULL UNIQUE,
       price REAL NOT NULL,
       stock INTEGER NOT NULL DEFAULT 0,
       image_path TEXT,
@@ -95,8 +95,7 @@ Future<void> managementCreateTables(Batch batch) async {
   batch.execute("""
     CREATE TABLE IF NOT EXISTS ${Transaction.tableName} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   """);
   batch.execute("""
@@ -342,12 +341,12 @@ class Product {
   /// For this use includeDeleted, default to false.
   static Future<Product?> getById(int id, {bool includeDeleted = false}) async {
     List<Map<String, Object?>>? temp;
-    if (includeDeleted){
+    if (includeDeleted) {
       temp = await LocalDBHandler.runRawSelectQuery(
         "SELECT * FROM $tableName WHERE id=$id;",
         [],
       );
-    }else{
+    } else {
       temp = await LocalDBHandler.runRawSelectQuery(
         "SELECT * FROM $tableName WHERE id=$id AND is_deleted=?;",
         [boolToInt(false)],
@@ -362,14 +361,17 @@ class Product {
   /// Adding includeDeleted to indicate if the data needed for is all of the product data.
   /// The product data that has been deleted is shadowed by is_deleted attribute.
   /// For this use includeDeleted, default to false.
-  static Future<Product?> getByName(String name, {bool includeDeleted=false}) async {
+  static Future<Product?> getByName(
+    String name, {
+    bool includeDeleted = false,
+  }) async {
     List<Map<String, Object?>>? temp;
-    if (includeDeleted){
+    if (includeDeleted) {
       temp = await LocalDBHandler.runRawSelectQuery(
         "SELECT * FROM $tableName WHERE name=$name;",
         [],
       );
-    }else{
+    } else {
       temp = await LocalDBHandler.runRawSelectQuery(
         "SELECT * FROM $tableName WHERE name=$name AND is_deleted=?;",
         [boolToInt(false)],
@@ -399,6 +401,13 @@ class Product {
     int stock,
     XFile? imgFile,
   ) async {
+    if (name.length > 255) {
+      await PopUpMessage.showOkMessage(
+        PopUpTitle.warning,
+        "Nama Produk harus kurang dari 255 karakter.",
+      );
+      return null;
+    }
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id FROM $tableName WHERE name = ?",
       [name],
