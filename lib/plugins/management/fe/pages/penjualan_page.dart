@@ -56,7 +56,8 @@ class _PenjualanPageState extends State<PenjualanPage> {
     }
     int total = 0;
     for (final d in details) {
-      final p = await Product.getById(d.productId);
+      // Adding includeDeleted to true
+      final p = await Product.getById(d.productId, includeDeleted: true);
       if (p != null) total += (p.price.toInt() * d.quantity);
     }
     if (!mounted) return;

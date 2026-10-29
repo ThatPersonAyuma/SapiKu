@@ -1,7 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
@@ -34,23 +32,21 @@ Future<bool> managementSetup(VoidCallback callback) async {
     "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
     [managementName],
   );
-  callback();
   if (res == null) return false;
+  callback();
   if (res.isNotEmpty) {
     if (res[0]['is_setup'] == 1) return true;
   }
   // Because the data is not cleaned perfectly, we need to avoid redundant adding
-  if (res.isEmpty){
-    final batch = LocalDBHandler.getBatch();
-    if (batch == null) return false;
+  final batch = LocalDBHandler.getBatch();
+  if (batch == null) return false;
 
-    await managementCreateTables(batch);
-    callback();
+  await managementCreateTables(batch);
+  callback();
 
-    await managementSeeder(batch, callback);
-    
-    await batch.commit(noResult: true);
-  }
+  await managementSeeder(batch, callback);
+
+  await batch.commit(noResult: true);
   if (res.isNotEmpty) {
     await LocalDBHandler.runRawUpdateQuery(
       """
@@ -242,6 +238,26 @@ Future<void> manageTest() async {
     DateTime.now().add(const Duration(days: 1)),
   );
 }
+
+/// Function to drop all management table
+Future<bool> manageDropTables() async {
+  final Batch? batch = LocalDBHandler.getBatch();
+  if (batch == null) return false;
+  batch.rawQuery("DROP TABLE IF EXISTS ${TransactionDetail.tableName};");
+  batch.rawQuery("DROP TABLE IF EXISTS ${Product.tableName};");
+  batch.rawQuery("DROP TABLE IF EXISTS ${Transaction.tableName};");
+  await batch.commit(noResult: true);
+  return true;
+}
+
+/// Method for delete plugin management
+Future<bool> managementDelete() async {
+  final bool isDeleted = await manageDropTables();
+  if (!isDeleted) return false;
+  await FileHandler.deleteDirectory(Product.productImgPath);
+  await FileHandler.deleteDirectory(Product.qrPhotoPath);
+  return true;
+}
 // #endregion
 
 // #region DB Table Class Bridge
@@ -320,22 +336,45 @@ class Product {
     }
   }
 
-  /// Get Product by ID, return none if id didnt exist or db is not setup properly
-  static Future<Product?> getById(int id) async {
-    List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
-      "SELECT * FROM $tableName WHERE id=$id",
-    );
+  /// Get Product by ID, return none if id didnt exist or db is not setup properly.
+  /// Adding includeDeleted to indicate if the data needed for is all of the product data.
+  /// The product data that has been deleted is shadowed by is_deleted attribute.
+  /// For this use includeDeleted, default to false.
+  static Future<Product?> getById(int id, {bool includeDeleted = false}) async {
+    List<Map<String, Object?>>? temp;
+    if (includeDeleted){
+      temp = await LocalDBHandler.runRawSelectQuery(
+        "SELECT * FROM $tableName WHERE id=$id;",
+        [],
+      );
+    }else{
+      temp = await LocalDBHandler.runRawSelectQuery(
+        "SELECT * FROM $tableName WHERE id=$id AND is_deleted=?;",
+        [boolToInt(false)],
+      );
+    }
     if (temp == null || temp.isEmpty) return null;
     Map<String, Object?> res = temp[0];
     return Product.createFromMap(res);
   }
 
-  /// Get Product by name, return none if id didnt exist or db is not setup properly
-  static Future<Product?> getByName(String name) async {
-    List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
-      "SELECT * FROM $tableName WHERE name LIKE ?",
-      [name],
-    );
+  /// Get Product by name, return none if id didnt exist or db is not setup properly.
+  /// Adding includeDeleted to indicate if the data needed for is all of the product data.
+  /// The product data that has been deleted is shadowed by is_deleted attribute.
+  /// For this use includeDeleted, default to false.
+  static Future<Product?> getByName(String name, {bool includeDeleted=false}) async {
+    List<Map<String, Object?>>? temp;
+    if (includeDeleted){
+      temp = await LocalDBHandler.runRawSelectQuery(
+        "SELECT * FROM $tableName WHERE name=$name;",
+        [],
+      );
+    }else{
+      temp = await LocalDBHandler.runRawSelectQuery(
+        "SELECT * FROM $tableName WHERE name=$name AND is_deleted=?;",
+        [boolToInt(false)],
+      );
+    }
     if (temp == null || temp.isEmpty) return null;
     Map<String, Object?> res = temp[0];
     return Product.createFromMap(res);
@@ -345,7 +384,8 @@ class Product {
   /// return null if db is not setup properly
   static Future<List<Product>?> getAll() async {
     List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
-      "SELECT * FROM $tableName",
+      "SELECT * FROM $tableName WHERE is_deleted=?;",
+      [boolToInt(false)],
     );
     if (temp == null || temp.isEmpty) return null;
     return [for (final map in temp) createFromMap(map)];
@@ -376,24 +416,24 @@ class Product {
     return Product(id, name, price, stock, imgPath, null);
   }
 
-   /// Save current Product, return int of count if success otherwise null
-   Future<int?> saveToDb() async {
-     return await LocalDBHandler.runRawUpdateQuery(
-       "UPDATE $tableName SET name = ?, price = ?, stock = ?, image_path = ?, qr_image_path = ? WHERE id = ?;",
-       [name, price, stock, imagePath, qrImagePath, id],
-     );
-   }
+  /// Save current Product, return int of count if success otherwise null
+  Future<int?> saveToDb() async {
+    return await LocalDBHandler.runRawUpdateQuery(
+      "UPDATE $tableName SET name = ?, price = ?, stock = ?, image_path = ?, qr_image_path = ? WHERE id = ?;",
+      [name, price, stock, imagePath, qrImagePath, id],
+    );
+  }
 
-   /// Update stock produk, return int of count if success otherwise null
-   Future<int?> updateStock(int newStock) async {
-     stock = newStock;
-     return await LocalDBHandler.runRawUpdateQuery(
-       "UPDATE $tableName SET stock = ? WHERE id = ?;",
-       [stock, id],
-     );
-   }
+  /// Update stock produk, return int of count if success otherwise null
+  Future<int?> updateStock(int newStock) async {
+    stock = newStock;
+    return await LocalDBHandler.runRawUpdateQuery(
+      "UPDATE $tableName SET stock = ? WHERE id = ?;",
+      [stock, id],
+    );
+  }
 
-   /// Change product image and destroy before if exist also change current imagePath and save to the database
+  /// Change product image and destroy before if exist also change current imagePath and save to the database
   Future<void> changeProductImage(XFile img) async {
     imagePath = await FileHandler.storeImage(productImgPath, img, imagePath);
     saveToDb();
@@ -429,45 +469,39 @@ class Product {
     }
   }
 
-   /// Open qr scan and scan the qr. Return Product if qr scanned succesfully.
-   /// Otherwise return null. This can happen if qr scan failed or product with that id didn't exist
-   static Future<Product?> getFromQr(BuildContext ctx) async {
-     final int? id = await Navigator.push(
-       ctx,
-       MaterialPageRoute<int>(builder: (context) => const QRScannerPage()),
-     );
-     // Error on read qr
-     if (id == null) return null;
-     return await Product.getById(id);
-   }
+  /// Open qr scan and scan the qr. Return Product if qr scanned succesfully.
+  /// Otherwise return null. This can happen if qr scan failed or product with that id didn't exist
+  static Future<Product?> getFromQr(BuildContext ctx) async {
+    final int? id = await Navigator.push(
+      ctx,
+      MaterialPageRoute<int>(builder: (context) => const QRScannerPage()),
+    );
+    // Error on read qr
+    if (id == null) return null;
+    return await Product.getById(id);
+  }
 
-   /// Delete a record by given id
-   static Future<void> destroyById(int id) async {
-     // Delete related transaction details first due to foreign key constraint
-     await LocalDBHandler.runActionQuery(
-       "DELETE FROM ${TransactionDetail.tableName} WHERE product_id=?",
-       [id],
-     );
-     // Then delete the product
-     return await LocalDBHandler.runActionQuery(
-       "DELETE FROM $tableName WHERE id=?",
-       [id],
-     );
-   }
+  /// Delete a record by given id
+  static Future<void> destroyById(int id) async {
+    // Delete related transaction details first due to foreign key constraint
+    return await LocalDBHandler.runActionQuery(
+      """UPDATE $tableName
+       SET is_deleted=?
+       WHERE id=?""",
+      [boolToInt(true), id],
+    );
+  }
 
-   /// Delete self from local database. Note this is not destroy the instance but only delete from the local database
-   Future<void> destroy() async {
-     // Delete related transaction details first due to foreign key constraint
-     await LocalDBHandler.runActionQuery(
-       "DELETE FROM ${TransactionDetail.tableName} WHERE product_id=?",
-       [id],
-     );
-     // Then delete the product
-     return await LocalDBHandler.runActionQuery(
-       "DELETE FROM $tableName WHERE id=?",
-       [id],
-     );
-   }
+  /// Delete self from local database. Note this is not destroy the instance but only delete from the local database
+  Future<void> destroy() async {
+    // Delete related transaction details first due to foreign key constraint
+    return await LocalDBHandler.runActionQuery(
+      """UPDATE $tableName
+      SET is_deleted=?
+      WHERE id=?""",
+      [boolToInt(true), id],
+    );
+  }
 }
 
 class Transaction {
@@ -499,7 +533,7 @@ class Transaction {
   static Future<List<Transaction>?> getAll() async {
     final List<Map<String, Object?>>? res =
         await LocalDBHandler.runRawSelectQuery(
-          "SELECT * FROM $tableName ORDER BY datetime DESC;",
+          "SELECT * FROM $tableName ORDER BY DATETIME(datetime) DESC;",
         );
     if (res == null) return null;
     return [for (final map in res) Transaction.createFromMap(map)];
@@ -638,7 +672,7 @@ class Transaction {
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
       GROUP BY t.id, t.datetime
-      ORDER BY t.datetime ASC;
+      ORDER BY datetime(t.datetime) ASC;
       """,
           [start.toIso8601String(), end.toIso8601String()],
         );
@@ -666,7 +700,7 @@ class Transaction {
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
       GROUP BY c.id
-      ORDER BY t.datetime ASC;
+      ORDER BY datetime(t.datetime) ASC;
       """,
           [start.toIso8601String(), end.toIso8601String()],
         );

@@ -48,25 +48,28 @@ class FileHandler {
     return "$directory/$prefix/$filename";
   }
 
-  static Future<String?> getDownloadPath() async {
-    Directory? directory;
-    try {
-      if (Platform.isIOS) {
-        directory = await getApplicationDocumentsDirectory();
-      } else {
-        // Mengambil folder eksternal khusus aplikasi di Android
-        // Path: /storage/emulated/0/Android/data/<package_name>/files
-        directory = await getExternalStorageDirectory();
+  // static Future<String?> getDownloadPath() async {
+  //   Directory? directory;
+  //   try {
+  //     if (Platform.isIOS) {
+  //       directory = await getApplicationDocumentsDirectory();
+  //     } else {
+  //       // Mengambil folder eksternal khusus aplikasi di Android
+  //       // Path: /storage/emulated/0/Android/data/<package_name>/files
+  //       directory = await getExternalStorageDirectory();
 
-        // Atau bisa coba fungsi bawaan path_provider untuk folder Downloads:
-        // directory = await getDownloadsDirectory();
-      }
-    } catch (err) {
-      print("Cannot get download folder path, err: ${err.toString()}");
-      PopUpMessage.showOkMessage(PopUpTitle.error, "Tidak dapat mendapatkan download path.");
-    }
-    return directory?.path;
-  }
+  //       // Atau bisa coba fungsi bawaan path_provider untuk folder Downloads:
+  //       // directory = await getDownloadsDirectory();
+  //     }
+  //   } catch (err) {
+  //     print("Cannot get download folder path, err: ${err.toString()}");
+  //     PopUpMessage.showOkMessage(
+  //       PopUpTitle.error,
+  //       "Tidak dapat mendapatkan download path.",
+  //     );
+  //   }
+  //   return directory?.path;
+  // }
 
   static Future<bool> saveFileWithPicker({
     required List<int> bytes,
@@ -104,5 +107,22 @@ class FileHandler {
         await tempFile.delete();
       }
     }
+  }
+
+  /// Delete a file using given file path.
+  /// Automatically adding 
+  static Future<void> deleteFile(String filePath) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$filePath');
+    if (!file.existsSync()) return;
+    await file.delete();
+  }
+
+  /// Delete a directory and its sub-diretories and file. It use dete recursive
+  static Future<void> deleteDirectory(String folderPath) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$folderPath');
+    if (!file.existsSync()) return;
+    await file.delete(recursive: true);
   }
 }

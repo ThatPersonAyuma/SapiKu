@@ -74,7 +74,7 @@ class _DownloadPage extends State<DownloadPage> {
               name: data.name,
               icon: CustomIcons.griddy_icons_cow_filled,
               downloadCallback: PluginHandler.detectionEnsurePlugin,
-              removeCallback: () async {},
+              removeCallback: PluginHandler.deleteDetectionPlugin,
               plugin: await Plugin.getFromByName(data.name)
             ),
           );

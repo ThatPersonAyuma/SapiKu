@@ -35,6 +35,7 @@ class _DownloadCard extends State<DownloadCard> {
   int maxProgress = 8;
   int currentProgress = 0;
   double percentProgress = 0.0;
+  bool _isDeleting = false;
   void downloadProgress() {
     if (currentProgress == 0) {
       setState(() {
@@ -76,9 +77,13 @@ class _DownloadCard extends State<DownloadCard> {
       "Anda akan menghapus plugin Pencatatan beserta datanya. Apakah anda yakin ingin menghapus plugin ini?",
     );
     if (!decision) return;
+    setState(() {
+      _isDeleting = true;
+    });
     await widget.removeCallback();
     final plugData = await Plugin.getFromByName(widget.name);
     setState(() {
+      _isDeleting = false;
       widget.plugin = plugData;
     });
   }
@@ -149,9 +154,11 @@ class _DownloadCard extends State<DownloadCard> {
                                     style: ElevatedButton.styleFrom(
                                       shape: StadiumBorder(),
                                       foregroundColor: Colors.black,
-                                      backgroundColor: Colors.green,
+                                      backgroundColor: _isDeleting ? Colors.red : Colors.green,
                                     ),
-                                    child: const Text("Terunduh"),
+                                    child: _isDeleting ? 
+                                        const Text('Menghapus')
+                                        : const Text("Terunduh"),
                                   )
                                 : ElevatedButton(
                                     onPressed: _isDownloading
@@ -162,8 +169,8 @@ class _DownloadCard extends State<DownloadCard> {
                                       foregroundColor: Colors.black,
                                     ),
                                     child: _isDownloading
-                                        ? const Text("Mengunduh")
-                                        : const Text("Unduh"),
+                                          ? const Text("Mengunduh")
+                                          : const Text("Unduh"),
                                   ),
                           ],
                         ),

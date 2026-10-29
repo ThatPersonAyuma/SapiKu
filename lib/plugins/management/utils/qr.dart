@@ -27,38 +27,69 @@ Widget buildQRImage(String idStr) {
     ),
   );
 }
-
-Future getQrPngbyId(int id) async {
+Future<Uint8List?> getQrPngbyId(int id) async {
   try {
+    // 1. Buat painter QR seperti biasa
     final painter = QrPainter(
       data: id.toRadixString(36).toUpperCase(),
       version: QrVersions.auto,
       errorCorrectionLevel: QrErrorCorrectLevel.M,
-      
-      // 1. AKTIFKAN GAPLESS RENDERING
-      gapless: true, // Menghilangkan celah dan garis pemisah antar modul
-
-      // 2. ATUR WARNA LATAR BELAKANG KE PUTIH
-      emptyColor: const Color(0xFFFFFFFF), // Latar belakang putih solid
-
+      gapless: true,
+      emptyColor: const Color(0xFFFFFFFF),
       dataModuleStyle: const QrDataModuleStyle(
         dataModuleShape: QrDataModuleShape.square,
-        color: Color(0xFF000000), // Warna modul hitam
+        color: Color(0xFF000000),
       ),
       eyeStyle: const QrEyeStyle(
         eyeShape: QrEyeShape.square,
-        color: Color(0xFF000000), // Warna mata hitam solid
+        color: Color(0xFF000000),
       ),
     );
 
-    final byteData = await painter.toImageData(
-      300.0,
+    // 2. Tentukan ukuran QR asli (misal: 300x300 pixel)
+    const double qrSize = 300.0;
+    
+    // Tentukan ukuran border putih di sekitar QR (misal: 24 pixel di setiap sisi)
+    const double padding = 24.0;
+    
+    // Total ukuran gambar akhir (QR + padding kiri-kanan & atas-bawah)
+    final double totalSize = qrSize + (padding * 2);
+
+    // 3. Render QR menjadi objek ui.Image
+    final ui.Image qrImage = await painter.toImage(qrSize);
+
+    // 4. Buat PictureRecorder untuk menggambar ulang dengan tambahan border putih
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+
+    // 5. Buat background putih seluas totalSize
+    final Paint whitePaint = Paint()..color = const Color(0xFFFFFFFF);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, totalSize, totalSize),
+      whitePaint,
+    );
+
+    // 6. Gambar QR code di tengah-tengah (bergeser sejauh nilai padding)
+    canvas.drawImage(
+      qrImage,
+      const Offset(padding, padding),
+      Paint(),
+    );
+
+    // 7. Selesaikan rekaman canvas menjadi ui.Image baru
+    final ui.Image finalImage = await recorder.endRecording().toImage(
+          totalSize.toInt(),
+          totalSize.toInt(),
+        );
+
+    // 8. Konversi ui.Image akhir ke format PNG ByteData
+    final ByteData? byteData = await finalImage.toByteData(
       format: ui.ImageByteFormat.png,
     );
 
     return byteData?.buffer.asUint8List();
   } catch (e) {
-    print("Gagal membuat gambar QR: $e");
+    print("Gagal membuat gambar QR dengan border: $e");
     return null;
   }
 }

@@ -38,19 +38,16 @@ Future<bool> detectionSetup(VoidCallback callback) async {
   if (res.isNotEmpty) {
     if (res[0]['is_setup'] == 1) return true;
   }
-  // Because the data is not cleaned perfectly, we need to avoid redundant adding
-  if (res.isEmpty) {
-    final batch = LocalDBHandler.getBatch();
-    if (batch == null) return false;
-    final res = await downloadModelAssets();
-    if (!res) return false;
+  final batch = LocalDBHandler.getBatch();
+  if (batch == null) return false;
+  final isDownloaded = await downloadModelAssets();
+  if (!isDownloaded) return false;
 
-    await detectionCreateTables(batch);
+  await detectionCreateTables(batch);
 
-    await detectionSeeder(batch, callback);
+  await detectionSeeder(batch, callback);
 
-    await batch.commit(noResult: true);
-  }
+  await batch.commit(noResult: true);
   if (res.isNotEmpty) {
     await LocalDBHandler.runRawUpdateQuery(
       """
@@ -224,6 +221,28 @@ Future<void> detectionSeeder(Batch batch, VoidCallback callback) async {
     'result': 'mange',
     'confidence': 0.912,
   });
+}
+
+Future<void> detectionDeleteAssets() async {
+  await FileHandler.deleteDirectory("$detectionName/$modelFolderPrefix");
+  await FileHandler.deleteDirectory(DeasesDetection.photoDirectory);
+}
+
+Future<bool> detectionDeleteTables() async {
+  final Batch? batch = LocalDBHandler.getBatch();
+  if (batch == null) return false;
+  batch.rawQuery("DROP TABLE IF EXISTS ${Scan.tableName};");
+  batch.rawQuery("DROP TABLE IF EXISTS ${Deases.tableName};");
+  batch.rawQuery("DROP TABLE IF EXISTS ${DeasesDetection.tableName};");
+  batch.commit(noResult: true);
+  return true;
+}
+
+Future<bool> detectionDelete() async {
+  final bool isDeleted = await detectionDeleteTables();
+  if (!isDeleted) return false;
+  await detectionDeleteAssets();
+  return true;
 }
 
 // #endregion
@@ -416,7 +435,7 @@ class DeasesDetection {
 
   /// Create DeasesDetection Object and Save It to the database.
   /// Return null if failed. This is prefered because it use
-  /// DetectionResult than ScanComponent which already compatibe with detection pipeline 
+  /// DetectionResult than ScanComponent which already compatibe with detection pipeline
   static Future<DeasesDetection?> create(
     XFile imgFile,
     List<DetectionResult> detections,
