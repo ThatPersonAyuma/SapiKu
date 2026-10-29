@@ -336,23 +336,45 @@ class Product {
     }
   }
 
-  /// Get Product by ID, return none if id didnt exist or db is not setup properly
-  static Future<Product?> getById(int id) async {
-    List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
-      "SELECT * FROM $tableName WHERE id=$id AND is_deleted=?;",
-      [true],
-    );
+  /// Get Product by ID, return none if id didnt exist or db is not setup properly.
+  /// Adding includeDeleted to indicate if the data needed for is all of the product data.
+  /// The product data that has been deleted is shadowed by is_deleted attribute.
+  /// For this use includeDeleted, default to false.
+  static Future<Product?> getById(int id, {bool includeDeleted = false}) async {
+    List<Map<String, Object?>>? temp;
+    if (includeDeleted){
+      temp = await LocalDBHandler.runRawSelectQuery(
+        "SELECT * FROM $tableName WHERE id=$id;",
+        [],
+      );
+    }else{
+      temp = await LocalDBHandler.runRawSelectQuery(
+        "SELECT * FROM $tableName WHERE id=$id AND is_deleted=?;",
+        [boolToInt(false)],
+      );
+    }
     if (temp == null || temp.isEmpty) return null;
     Map<String, Object?> res = temp[0];
     return Product.createFromMap(res);
   }
 
-  /// Get Product by name, return none if id didnt exist or db is not setup properly
-  static Future<Product?> getByName(String name) async {
-    List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
-      "SELECT * FROM $tableName WHERE name LIKE ? AND is_deleted=?",
-      [name, true],
-    );
+  /// Get Product by name, return none if id didnt exist or db is not setup properly.
+  /// Adding includeDeleted to indicate if the data needed for is all of the product data.
+  /// The product data that has been deleted is shadowed by is_deleted attribute.
+  /// For this use includeDeleted, default to false.
+  static Future<Product?> getByName(String name, {bool includeDeleted=false}) async {
+    List<Map<String, Object?>>? temp;
+    if (includeDeleted){
+      temp = await LocalDBHandler.runRawSelectQuery(
+        "SELECT * FROM $tableName WHERE name=$name;",
+        [],
+      );
+    }else{
+      temp = await LocalDBHandler.runRawSelectQuery(
+        "SELECT * FROM $tableName WHERE name=$name AND is_deleted=?;",
+        [boolToInt(false)],
+      );
+    }
     if (temp == null || temp.isEmpty) return null;
     Map<String, Object?> res = temp[0];
     return Product.createFromMap(res);
@@ -363,7 +385,7 @@ class Product {
   static Future<List<Product>?> getAll() async {
     List<Map<String, Object?>>? temp = await LocalDBHandler.runRawSelectQuery(
       "SELECT * FROM $tableName WHERE is_deleted=?;",
-      [true],
+      [boolToInt(false)],
     );
     if (temp == null || temp.isEmpty) return null;
     return [for (final map in temp) createFromMap(map)];
@@ -465,8 +487,8 @@ class Product {
     return await LocalDBHandler.runActionQuery(
       """UPDATE $tableName
        SET is_deleted=?
-       WHERE product_id=?""",
-      [1, id],
+       WHERE id=?""",
+      [boolToInt(true), id],
     );
   }
 
@@ -476,8 +498,8 @@ class Product {
     return await LocalDBHandler.runActionQuery(
       """UPDATE $tableName
       SET is_deleted=?
-      WHERE product_id=?""",
-      [1, id],
+      WHERE id=?""",
+      [boolToInt(true), id],
     );
   }
 }
@@ -511,7 +533,7 @@ class Transaction {
   static Future<List<Transaction>?> getAll() async {
     final List<Map<String, Object?>>? res =
         await LocalDBHandler.runRawSelectQuery(
-          "SELECT * FROM $tableName ORDER BY datetime DESC;",
+          "SELECT * FROM $tableName ORDER BY DATETIME(datetime) DESC;",
         );
     if (res == null) return null;
     return [for (final map in res) Transaction.createFromMap(map)];
@@ -650,7 +672,7 @@ class Transaction {
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
       GROUP BY t.id, t.datetime
-      ORDER BY t.datetime ASC;
+      ORDER BY datetime(t.datetime) ASC;
       """,
           [start.toIso8601String(), end.toIso8601String()],
         );
@@ -678,7 +700,7 @@ class Transaction {
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
       GROUP BY c.id
-      ORDER BY t.datetime ASC;
+      ORDER BY datetime(t.datetime) ASC;
       """,
           [start.toIso8601String(), end.toIso8601String()],
         );

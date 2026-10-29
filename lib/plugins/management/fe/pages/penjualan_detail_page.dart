@@ -44,7 +44,8 @@ class _PenjualanDetailPageState extends State<PenjualanDetailPage> {
     _details = details;
     for (final d in _details) {
       if (!_productCache.containsKey(d.productId)) {
-        final p = await Product.getById(d.productId);
+        // Adding includeDeleted to true
+        final p = await Product.getById(d.productId, includeDeleted: true);
         if (p != null) _productCache[d.productId] = p;
       }
     }

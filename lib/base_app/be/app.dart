@@ -133,7 +133,6 @@ class PluginHandler {
     String route,
   ) async {
     final res = await manageEnsurePlugin(() {});
-    print("Plugin Res: $res, ismounted ${context.mounted}");
     if (res && context.mounted) {
       Navigator.pushNamed(context, route);
     }

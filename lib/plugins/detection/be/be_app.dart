@@ -38,19 +38,16 @@ Future<bool> detectionSetup(VoidCallback callback) async {
   if (res.isNotEmpty) {
     if (res[0]['is_setup'] == 1) return true;
   }
-  // Because the data is not cleaned perfectly, we need to avoid redundant adding
-  if (res.isEmpty) {
-    final batch = LocalDBHandler.getBatch();
-    if (batch == null) return false;
-    final res = await downloadModelAssets();
-    if (!res) return false;
+  final batch = LocalDBHandler.getBatch();
+  if (batch == null) return false;
+  final isDownloaded = await downloadModelAssets();
+  if (!isDownloaded) return false;
 
-    await detectionCreateTables(batch);
+  await detectionCreateTables(batch);
 
-    await detectionSeeder(batch, callback);
+  await detectionSeeder(batch, callback);
 
-    await batch.commit(noResult: true);
-  }
+  await batch.commit(noResult: true);
   if (res.isNotEmpty) {
     await LocalDBHandler.runRawUpdateQuery(
       """
@@ -234,9 +231,9 @@ Future<void> detectionDeleteAssets() async {
 Future<bool> detectionDeleteTables() async {
   final Batch? batch = LocalDBHandler.getBatch();
   if (batch == null) return false;
+  batch.rawQuery("DROP TABLE IF EXISTS ${Scan.tableName};");
   batch.rawQuery("DROP TABLE IF EXISTS ${Deases.tableName};");
   batch.rawQuery("DROP TABLE IF EXISTS ${DeasesDetection.tableName};");
-  batch.rawQuery("DROP TABLE IF EXISTS ${Scan.tableName};");
   batch.commit(noResult: true);
   return true;
 }
