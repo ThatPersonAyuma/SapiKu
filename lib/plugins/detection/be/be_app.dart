@@ -333,11 +333,11 @@ class DeasesDetection {
       for (final {
             'id': id as int,
             'name': name as String,
-            'datetime': datetime as DateTime,
+            'datetime': datetimeStr as String,
             'image_path': imagePath as String,
           }
           in res)
-        DeasesDetection(id, name, imagePath, datetime: datetime),
+        DeasesDetection(id, name, imagePath, datetime: DateTime.parse(datetimeStr)),
     ];
   }
 
