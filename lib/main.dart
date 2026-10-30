@@ -12,8 +12,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // #region setup
-  await cloudSetup();
-  await test();
+  await CloudHandler.cloudSetup();
+  await CloudHandler.test();
   await LocalDBHandler.setup();
   // await managementSetup();
   // await manageTest();

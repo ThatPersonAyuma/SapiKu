@@ -31,7 +31,7 @@ class _DownloadPage extends State<DownloadPage> {
     setState(() {
       _isLoading = true;
     });
-    final res = await getPluginData();
+    final res = await CloudHandler.getPluginData();
     if (res == null) {
       if (mounted) {
         Navigator.pop(context);

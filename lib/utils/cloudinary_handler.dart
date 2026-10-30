@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:sapiku/utils/utils.dart';
@@ -30,5 +30,9 @@ class CloudinaryHandler {
       await PopUpMessage.showOkMessage(PopUpTitle.error, "Terjadi kesalahan pada sistem pengambilan gambar.");
       return null;
     }
+  }
+
+  static Future<bool> uploadImage(XFile imgFile, String filename)async{
+    return true;
   }
 }

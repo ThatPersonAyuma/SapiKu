@@ -24,7 +24,7 @@ class PluginHandler {
     // End of Before Update With ShoreBird
     // Start of After Update With ShoreBird
     callback();
-    return await managementSetup(callback, version);
+    return await ManagementPlugin.managementSetup(callback, version);
     // End of After Update With ShoreBird
   }
 
@@ -49,14 +49,14 @@ class PluginHandler {
     // End of Before Update With ShoreBird
     // Start of After Update With ShoreBird
     callback();
-    return await detectionSetup(callback, version);
+    return await DetectionPlugin.detectionSetup(callback, version);
     // End of After Update With ShoreBird
   }
 
   static Future<bool> detectionEnsurePlugin(VoidCallback callback, String version) async {
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM plugins WHERE name = ?",
-      [detectionName],
+      [DetectionPlugin.detectionName],
     );
     if (res == null) return false; //Error
     if (res.isEmpty || (res.isNotEmpty && (res[0]['is_setup'] as int) == 0)) {
@@ -80,7 +80,7 @@ class PluginHandler {
   static Future<bool> manageEnsurePlugin(VoidCallback callback, String version) async {
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM plugins WHERE name = ?",
-      [managementName],
+      [ManagementPlugin.managementName],
     );
     if (res == null) return false; //Error
     if (res.isEmpty || (res.isNotEmpty && (res[0]['is_setup'] as int) == 0)) {
@@ -105,7 +105,7 @@ class PluginHandler {
   /// Meaning it will lost all of the data that known by system.
   /// Excluding report because it is not tracked
   static Future<void> deleteManagementPlugin() async {
-    final plugin = await Plugin.getFromByName(managementName);
+    final plugin = await Plugin.getFromByName(ManagementPlugin.managementName);
     if (plugin == null) {
       PopUpMessage.showOkMessage(
         PopUpTitle.error,
@@ -114,7 +114,7 @@ class PluginHandler {
       return;
     }
     // Delete all of the management data
-    final bool isDeleted = await managementDelete();
+    final bool isDeleted = await ManagementPlugin.managementDelete();
     if (!isDeleted) {
       PopUpMessage.showOkMessage(PopUpTitle.error, "Gagal menghapus data Plugin Pencatatan.");
       return;
@@ -153,7 +153,7 @@ class PluginHandler {
   /// Meaning it will lost all of the data that known by system.
   /// Including the model
   static Future<void> deleteDetectionPlugin() async {
-    final plugin = await Plugin.getFromByName(detectionName);
+    final plugin = await Plugin.getFromByName(DetectionPlugin.detectionName);
     if (plugin == null) {
       PopUpMessage.showOkMessage(
         PopUpTitle.error,
@@ -162,7 +162,7 @@ class PluginHandler {
       return;
     }
     // Delete all of the management data
-    final bool isDeleted = await detectionDelete();
+    final bool isDeleted = await DetectionPlugin.detectionDelete();
     if (!isDeleted) {
       PopUpMessage.showOkMessage(PopUpTitle.error, "Gagal menghapus data Plugin Deteksi.");
       return;

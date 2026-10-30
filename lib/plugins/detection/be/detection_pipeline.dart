@@ -52,7 +52,7 @@ class CascadePipeline {
     final destinationDir = await getApplicationDocumentsDirectory();
     final yoloInterp = Interpreter.fromFile(
       File(
-        '${destinationDir.path}/$detectionName/$modelFolderPrefix/$yoloFileName',
+        '${destinationDir.path}/${DetectionPlugin.detectionName}/${DetectionPlugin.modelFolderPrefix}/${DetectionPlugin.yoloFileName}',
       ),
     );
     _yoloIsolate = await IsolateInterpreter.create(address: yoloInterp.address);
@@ -60,7 +60,7 @@ class CascadePipeline {
     // final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3_lumpy_f32.tflite');
     final mobileNetInterp = Interpreter.fromFile(
       File(
-        '${destinationDir.path}/$detectionName/$modelFolderPrefix/$mobNetFileName',
+        '${destinationDir.path}/${DetectionPlugin.detectionName}/${DetectionPlugin.modelFolderPrefix}/${DetectionPlugin.mobNetFileName}',
       ),
     );
     _mobileNetIsolate = await IsolateInterpreter.create(
