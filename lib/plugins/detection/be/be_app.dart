@@ -29,7 +29,10 @@ class DetectionPlugin {
 
   // #endregion
 
-  static Future<bool> detectionSetup(VoidCallback callback, String version) async {
+  static Future<bool> detectionSetup(
+    VoidCallback callback,
+    String version,
+  ) async {
     print("Setup");
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
@@ -147,7 +150,10 @@ class DetectionPlugin {
   }
 
   /// Seeding the database with dummy data, for dev & preview only
-  static Future<void> detectionSeeder(Batch batch, VoidCallback callback) async {
+  static Future<void> detectionSeeder(
+    Batch batch,
+    VoidCallback callback,
+  ) async {
     final paths = await downloadAssets(callback);
     if (paths == null) return;
     // 1. Seed Table Deases
@@ -327,7 +333,9 @@ class DeasesDetection {
   /// Use getScans instead, note that you should have this class isntance as getScans is not static method
   static Future<List<DeasesDetection>?> getAll() async {
     final List<Map<String, Object?>>? res =
-        await LocalDBHandler.runRawSelectQuery("SELECT * FROM $tableName;");
+        await LocalDBHandler.runRawSelectQuery(
+          "SELECT * FROM $tableName ORDER BY DATETIME(datetime) DESC;",
+        );
     if (res == null) return null;
     return [
       for (final {
@@ -537,6 +545,46 @@ class DeasesDetection {
       );
       return false;
     }
+  }
+
+  /// Get count of the total item of the DeasesDetection
+  static Future<int?> getCount() async {
+    final res = await LocalDBHandler.runRawSelectQuery("""
+    SELECT COUNT(*) as c FROM $tableName;
+    """);
+    if (res == null || res.isEmpty) return null;
+    return res[0]['c'] as int;
+  }
+
+  /// The index page using 1 as the first index
+  static Future<List<DeasesDetection>?> getPage(
+    int currentPage,
+    int pageSize,
+  ) async {
+    final totalItem = await DeasesDetection.getCount();
+    if (totalItem == null) return null;
+    int maxPage = (totalItem / pageSize).ceil();
+    if (maxPage < 1) maxPage = 1;
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > maxPage) currentPage = maxPage;
+    int offset = (currentPage - 1) * pageSize;
+    final res = await LocalDBHandler.runRawSelectQuery(
+      """
+      SELECT * FROM $tableName LIMIT ? OFFSET ? ORDER BY DATETIME(datetime) DESC;
+    """,
+      [pageSize, offset],
+    );
+    if (res == null) return null;
+    return [
+      for (final {
+            'id': id as int,
+            'name': name as String,
+            'datetime': datetime as DateTime,
+            'image_path': imagePath as String,
+          }
+          in res)
+        DeasesDetection(id, name, imagePath, datetime: datetime),
+    ];
   }
 }
 

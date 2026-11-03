@@ -508,6 +508,41 @@ class Product {
       [boolToInt(true), id],
     );
   }
+
+  /// Get count of the product item
+  static Future<int?> getCount() async {
+    final res = await LocalDBHandler.runRawSelectQuery("""
+    SELECT COUNT(*) as c FROM $tableName;
+    """);
+    if (res == null || res.isEmpty) return null;
+    return res[0]['c'] as int;
+  }
+
+  /// The index page using 1 as the first index
+  static Future<List<Product>?> getPage(
+    int currentPage,
+    int pageSize,
+  ) async {
+    final totalItem = await getCount();
+    if (totalItem == null) return null;
+    int maxPage = (totalItem / pageSize).ceil();
+    if (maxPage < 1) maxPage = 1;
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > maxPage) currentPage = maxPage;
+    int offset = (currentPage - 1) * pageSize;
+    final res = await LocalDBHandler.runRawSelectQuery(
+      """
+      SELECT * FROM $tableName LIMIT ? OFFSET ?;
+    """,
+      [pageSize, offset],
+    );
+    if (res == null) return null;
+    return [
+      for (final map
+          in res)
+        Product.createFromMap(map),
+    ];
+  }
 }
 
 class Transaction {
@@ -706,12 +741,47 @@ class Transaction {
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
       GROUP BY c.id
-      ORDER BY datetime(t.datetime) ASC;
+      ORDER BY datetime(t.datetime) DESC;
       """,
           [start.toIso8601String(), end.toIso8601String()],
         );
     print("res prod:\n$res");
     return res;
+  }
+
+  /// Get count of the transaction item
+  static Future<int?> getCount() async {
+    final res = await LocalDBHandler.runRawSelectQuery("""
+    SELECT COUNT(*) as c FROM $tableName;
+    """);
+    if (res == null || res.isEmpty) return null;
+    return res[0]['c'] as int;
+  }
+
+  /// The index page using 1 as the first index
+  static Future<List<Transaction>?> getPage(
+    int currentPage,
+    int pageSize,
+  ) async {
+    final totalItem = await getCount();
+    if (totalItem == null) return null;
+    int maxPage = (totalItem / pageSize).ceil();
+    if (maxPage < 1) maxPage = 1;
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > maxPage) currentPage = maxPage;
+    int offset = (currentPage - 1) * pageSize;
+    final res = await LocalDBHandler.runRawSelectQuery(
+      """
+      SELECT * FROM $tableName LIMIT ? OFFSET ? ORDER BY datetime(t.datetime) DESC;
+    """,
+      [pageSize, offset],
+    );
+    if (res == null) return null;
+    return [
+      for (final map
+          in res)
+        Transaction.createFromMap(map),
+    ];
   }
 }
 

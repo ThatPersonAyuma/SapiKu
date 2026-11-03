@@ -67,6 +67,8 @@ class CloudHandler {
       return null;
     }
   }
+
+  static 
 }
 
 class PluginConf {
