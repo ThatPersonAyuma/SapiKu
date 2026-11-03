@@ -409,31 +409,33 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      height: 140,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        border: Border.all(color: AppColors.greenBorder, width: 2),
-                        borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          border: Border.all(color: AppColors.greenBorder, width: 2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: (_product.imagePath != null && File(_product.imagePath!).existsSync())
+                            ? Image.file(File(_product.imagePath!), fit: BoxFit.cover)
+                            : const Icon(Icons.image, color: Colors.grey, size: 40),
                       ),
-                      child: (_product.imagePath != null && File(_product.imagePath!).existsSync())
-                          ? Image.file(File(_product.imagePath!), fit: BoxFit.cover)
-                          : const Icon(Icons.image, color: Colors.grey, size: 40),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 SizedBox(
-                  width: 120,
+                  width: 140,
                   child: Column(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
-                          width: 120,
-                          height: 120,
+                          width: 140,
+                          height: 140,
                           color: Colors.grey.shade200,
                           child: (_product.qrImagePath != null && File(_product.qrImagePath!).existsSync())
                               ? Image.file(File(_product.qrImagePath!), fit: BoxFit.cover)

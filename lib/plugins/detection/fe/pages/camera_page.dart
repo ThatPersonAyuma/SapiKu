@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
+import 'package:sapiku/plugins/detection/be/detection_pipeline.dart';
 import 'package:sapiku/plugins/detection/fe/pages/detection_result_page.dart';
 import 'package:sapiku/plugins/detection/fe/pages/detection_failure_page.dart';
 import 'package:sapiku/plugins/detection/fe/providers/detection_provider.dart';
@@ -52,8 +53,11 @@ class _CameraPageState extends State<CameraPage> {
       );
       return;
     }
-    // Check if detection succeeded
-    if (entry.results.isEmpty) {
+    // Check if detection succeeded (no results or all have failedClassific)
+    bool isFailed = entry.results.isEmpty || 
+        entry.results.every((r) => r.label == CascadePipeline.failedClassific);
+    
+    if (isFailed) {
       Navigator.push(
         context,
         MaterialPageRoute(

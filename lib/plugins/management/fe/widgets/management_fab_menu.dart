@@ -86,7 +86,7 @@ class _ManagementFabMenuState extends State<ManagementFabMenu> with SingleTicker
               ),
               const SizedBox(height: 10),
               _buildAction(
-                label: 'Perbarui Stock',
+                label: 'Tambah Stock',
                 icon: Icons.qr_code_rounded,
                 index: 2,
                 onTap: () {

@@ -248,7 +248,7 @@ class PopUpMessage {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        child: const Text('Batal'),
+                        child: const Text('Tidak'),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(

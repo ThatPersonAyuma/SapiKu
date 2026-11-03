@@ -42,7 +42,7 @@ class CascadePipeline {
 
   /// Thresshold for classification.
   /// Used for identify if classification prediction is good enough
-  static const double classificThresshold = 0.85;
+  static const double classificThresshold = 0.60;
 
   /// PlaceHolder label for label that failed to be detected by MobileNetv3
   static const String failedClassific = "Gagal Mendeteksi";

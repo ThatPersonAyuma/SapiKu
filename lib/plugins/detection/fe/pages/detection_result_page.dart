@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
 import 'package:sapiku/plugins/detection/be/detection_pipeline.dart';
+import 'package:sapiku/plugins/detection/fe/pages/detection_recommendation_page.dart';
 import 'package:sapiku/plugins/detection/fe/widgets/bounding_box_painter.dart';
 
 class DetectionResultPage extends StatelessWidget {
@@ -42,16 +44,24 @@ class DetectionResultPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _ResultSection(results: results),
-            const SizedBox(height: 12),
-            // _MetricsCard(metrics: metrics),
-            // const SizedBox(height: 16),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetectionRecommendationPage(
+                            results: results,
+                            imageFile: XFile(imageFile.path),
+                          ),
+                        ),
+                      );
+                    },
                     child: const Text(
-                      'Kembali',
+                      'Detail',
                       style: TextStyle(
                         color: Color(0xFF2E2E2E),
                         fontSize: 18,

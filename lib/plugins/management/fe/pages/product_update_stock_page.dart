@@ -71,7 +71,7 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
   }
 
   void _showUpdateStockDialog(Product product) {
-    final stockController = TextEditingController(text: product.stock.toString());
+    final stockController = TextEditingController(text: '');
 
     showDialog(
       context: context,
@@ -113,8 +113,22 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                     ),
                   ),
                   const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Stok Saat Ini',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                      Text(
+                        '${product.stock} unit',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   const Text(
-                    'Stok',
+                    'Tambah Stok',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
                   ),
                   const SizedBox(height: 6),
@@ -122,7 +136,8 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                     controller: stockController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      hintText: 'Masukkan jumlah stok',
+                      hintText: 'Masukkan jumlah stok tambahan',
+                      hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -142,8 +157,8 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                   Center(
                     child: ElevatedButton(
                       onPressed: () async {
-                        final newStock = int.tryParse(stockController.text);
-                        if (newStock == null || newStock < 0) {
+                        final addStock = int.tryParse(stockController.text);
+                        if (addStock == null || addStock < 0) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(content: Text('Input stok tidak valid')),
                           );
@@ -151,15 +166,15 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                         }
 
                         try {
+                          final newStock = product.stock + addStock;
                           await product.updateStock(newStock);
                           if (!ctx.mounted) return;
 
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Stok produk "${product.name}" berhasil diperbarui')),
+                            SnackBar(content: Text('Stok produk "${product.name}" berhasil ditambah ${addStock} unit (total: $newStock unit)')),
                           );
 
-                          // Redirect to management page
                           if (mounted) {
                             Navigator.pop(context);
                           }
@@ -177,7 +192,7 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                       ),
-                      child: const Text('Perbarui Stok'),
+                      child: const Text('Tambah Stock'),
                     ),
                   ),
                 ],
@@ -219,7 +234,7 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const SapikuAppBar(title: 'Perbarui Stok Produk'),
+      appBar: const SapikuAppBar(title: 'Tambah Stok'),
       body: AppBackground(
         child: Stack(
           children: [
