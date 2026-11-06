@@ -934,6 +934,40 @@ class ManageUtils {
     wb.dispose();
     return true;
   }
+
+  static Future<bool> saveTransactionReport(
+    DateTime start,
+    DateTime end, {
+    List<TransactionRecord>? reportData,
+  }) async {
+    final filePath = 'Laporan_Penjualan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
+    final Workbook wb = Workbook();
+    final Worksheet sheet = wb.worksheets[0];
+    await _createTransReportExcel(start, end, sheet, reportData);
+    FileHandler.saveFileWithPicker(
+      bytes: wb.saveAsStream(),
+      fileName: filePath,
+    );
+    wb.dispose();
+    return true;
+  }
+
+  static Future<bool> saveProductReport(
+    DateTime start,
+    DateTime end, {
+    List<ProductReport>? reportData,
+  }) async {
+    final filePath = 'Laporan_Pencatatan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
+    final Workbook wb = Workbook();
+    final Worksheet sheet = wb.worksheets[0];
+    await _createProductReportExcel(start, end, sheet, reportData);
+    FileHandler.saveFileWithPicker(
+      bytes: wb.saveAsStream(),
+      fileName: filePath,
+    );
+    wb.dispose();
+    return true;
+  }
 }
 
 // #endregion
