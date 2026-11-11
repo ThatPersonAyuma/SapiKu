@@ -6,9 +6,17 @@ import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
 import 'package:sapiku/plugins/management/be/be_app.dart';
 import 'package:sapiku/plugins/management/utils/qr.dart';
+import 'package:sapiku/utils/utils.dart';
 
 class ProductScanQrPage extends StatefulWidget {
-  const ProductScanQrPage({super.key});
+  final bool returnProduct;
+  final String? title;
+
+  const ProductScanQrPage({
+    super.key,
+    this.returnProduct = false,
+    this.title,
+  });
 
   @override
   State<ProductScanQrPage> createState() => _ProductScanQrPageState();
@@ -17,6 +25,7 @@ class ProductScanQrPage extends StatefulWidget {
 class _ProductScanQrPageState extends State<ProductScanQrPage> {
   late MobileScannerController _scannerController;
   bool _isProcessing = false;
+  bool _showingDialog = false;
 
   @override
   void initState() {
@@ -32,14 +41,79 @@ class _ProductScanQrPageState extends State<ProductScanQrPage> {
     super.dispose();
   }
 
+  void _showErrorDialog(String message) async {
+    setState(() => _showingDialog = true);
+    await showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.greenBorder, width: 2),
+              ),
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Terjadi Kesalahan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.darkCard,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      child: const Text('OK'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      if (mounted) {
+        setState(() => _showingDialog = false);
+      }
+    });
+  }
+
   void _onDetect(BarcodeCapture capture) async {
-    if (_isProcessing || capture.barcodes.isEmpty) return;
+    if (_isProcessing || capture.barcodes.isEmpty || _showingDialog) return;
 
     final rawValue = capture.barcodes.first.rawValue;
     final id = convertIdScanned(rawValue);
 
     if (id == null) {
-      debugPrint('Invalid QR');
+      debugPrint('I/flutter (31273): Invalid QR');
+      _showErrorDialog('Produk Tidak Ditemukan');
       return;
     }
 
@@ -50,22 +124,25 @@ class _ProductScanQrPageState extends State<ProductScanQrPage> {
       if (!mounted) return;
 
       if (product == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Produk tidak ditemukan')),
-        );
         _isProcessing = false;
+        _showErrorDialog('Produk Tidak Ditemukan');
         return;
       }
 
-      // Navigate to product detail
-      await Navigator.pushNamed(
-        context,
-        '/management/product/detail',
-        arguments: {'product': product},
-      );
+      if (widget.returnProduct) {
+        // Return product to caller (for sales page)
+        Navigator.pop(context, product);
+      } else {
+        // Navigate to product detail
+        await Navigator.pushNamed(
+          context,
+          '/management/product/detail',
+          arguments: {'product': product},
+        );
 
-      if (mounted) {
-        _isProcessing = false;
+        if (mounted) {
+          _isProcessing = false;
+        }
       }
     } catch (e) {
       debugPrint('Error scanning QR: $e');
@@ -82,7 +159,7 @@ class _ProductScanQrPageState extends State<ProductScanQrPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const SapikuAppBar(title: 'Scan QR Produk'),
+      appBar: SapikuAppBar(title: widget.title ?? 'Scan QR Produk'),
       body: AppBackground(
         child: Stack(
           children: [

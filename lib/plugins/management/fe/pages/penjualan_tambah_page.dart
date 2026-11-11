@@ -6,8 +6,10 @@ import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
 import 'package:sapiku/plugins/management/be/be_app.dart';
+import 'package:sapiku/plugins/management/fe/pages/product_scan_qr_page.dart';
 import 'package:sapiku/plugins/management/fe/widgets/penjualan_tambah_fab_menu.dart';
 import 'package:sapiku/plugins/management/utils/qr.dart';
+import 'package:sapiku/utils/utils.dart';
 
 class PenjualanTambahPage extends StatefulWidget {
   const PenjualanTambahPage({super.key});
@@ -110,12 +112,17 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
   }
 
   Future<void> _handleScanQr() async {
-    final product = await Product.getFromQr(context);
+    final product = await Navigator.push<Product>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ProductScanQrPage(
+          returnProduct: true,
+          title: 'Scan QR Penjualan',
+        ),
+      ),
+    );
     if (!mounted) return;
-    if (product == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('QR tidak valid atau produk tidak ditemukan')));
-      return;
-    }
+    if (product == null) return;
     _showQrQtyDialog(product: product);
   }
 
@@ -140,7 +147,10 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
       final product = await Product.getById(id);
       if (!mounted) return;
       if (product == null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Produk ID #$id tidak ditemukan')));
+        await PopUpMessage.showOkMessage(
+          PopUpTitle.error,
+          'Produk Tidak Ditemukan',
+        );
         return;
       }
       _showQrQtyDialog(product: product);
@@ -155,61 +165,70 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
     showDialog(
       context: context,
       barrierColor: Colors.black54,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Stack(clipBehavior: Clip.none, children: [
-          Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.greenBorder, width: 2)),
-            padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Tambah Produk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                decoration: BoxDecoration(color: Colors.grey.shade50, border: Border.all(color: AppColors.greenBorder, width: 1.4), borderRadius: BorderRadius.circular(8)),
-                child: Text(product.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
-              ),
-              const SizedBox(height: 14),
-              const Text('Qty', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: qtyCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: '1',
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4)),
+      builder: (_) => StatefulBuilder(builder: (ctx, setDlg) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Stack(clipBehavior: Clip.none, children: [
+            Container(
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.greenBorder, width: 2)),
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Tambah Produk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(color: Colors.grey.shade50, border: Border.all(color: AppColors.greenBorder, width: 1.4), borderRadius: BorderRadius.circular(8)),
+                  child: Text(product.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    final qty = int.tryParse(qtyCtrl.text) ?? 0;
-                    if (qty <= 0) return;
-                    _addProduct(product, qty);
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.darkCard, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  child: const Text('Tambah'),
+                const SizedBox(height: 14),
+                const Text('Qty', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setDlg(() {}),
+                  decoration: InputDecoration(
+                    hintText: '1',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4)),
+                  ),
                 ),
-              ),
-            ]),
-          ),
-          Positioned(
-            top: -14, right: -14,
-            child: InkWell(
-              onTap: () => Navigator.pop(context),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.darkCard, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))]), child: const Icon(Icons.close_rounded, size: 20, color: Colors.white)),
+                const SizedBox(height: 6),
+                if ((int.tryParse(qtyCtrl.text) ?? 1) <= 0)
+                  const Text(
+                    'Qty tidak bisa 0',
+                    style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w500),
+                  ),
+                const SizedBox(height: 12),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final qty = int.tryParse(qtyCtrl.text) ?? 0;
+                      if (qty <= 0) return;
+                      _addProduct(product, qty);
+                      Navigator.pop(ctx);
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.darkCard, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    child: const Text('Tambah'),
+                  ),
+                ),
+              ]),
             ),
-          ),
-        ]),
-      ),
+            Positioned(
+              top: -14, right: -14,
+              child: InkWell(
+                onTap: () => Navigator.pop(ctx),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.darkCard, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))]), child: const Icon(Icons.close_rounded, size: 20, color: Colors.white)),
+              ),
+            ),
+          ]),
+        );
+      }),
     );
   }
 
@@ -357,11 +376,28 @@ class _PenjualanTambahPageState extends State<PenjualanTambahPage> {
           const SizedBox(height: 14),
           const Text('Qty', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
           const SizedBox(height: 6),
-          TextField(controller: qtyCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(hintText: '1', contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4)))),
-          const SizedBox(height: 18),
-          Center(child: ElevatedButton(onPressed: () { final qty = int.tryParse(qtyCtrl.text) ?? 0; if (selected == null || qty <= 0) return; _addProduct(selected!, qty); Navigator.pop(context); }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.darkCard, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)), child: const Text('Tambah'))),
+          TextField(
+            controller: qtyCtrl,
+            keyboardType: TextInputType.number,
+            onChanged: (_) => setDlg(() {}),
+            decoration: InputDecoration(
+              hintText: '1',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4)),
+            ),
+          ),
+          const SizedBox(height: 6),
+          if ((int.tryParse(qtyCtrl.text) ?? 1) <= 0)
+            const Text(
+              'Qty tidak bisa 0',
+              style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w500),
+            ),
+          const SizedBox(height: 12),
+          Center(child: ElevatedButton(onPressed: () { final qty = int.tryParse(qtyCtrl.text) ?? 0; if (selected == null || qty <= 0) return; _addProduct(selected!, qty); Navigator.pop(ctx); }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.darkCard, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)), child: const Text('Tambah'))),
         ])),
-        Positioned(top: -14, right: -14, child: InkWell(onTap: () => Navigator.pop(context), borderRadius: BorderRadius.circular(20), child: Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.darkCard, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))]), child: const Icon(Icons.close_rounded, size: 20, color: Colors.white)))),
+        Positioned(top: -14, right: -14, child: InkWell(onTap: () => Navigator.pop(ctx), borderRadius: BorderRadius.circular(20), child: Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.darkCard, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))]), child: const Icon(Icons.close_rounded, size: 20, color: Colors.white)))),
       ]));
     }));
   }

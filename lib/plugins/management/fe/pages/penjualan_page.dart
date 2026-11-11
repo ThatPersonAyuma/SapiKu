@@ -119,7 +119,7 @@ class _PenjualanPageState extends State<PenjualanPage> {
               _load();
             },
             onLaporan: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Laporan Penjualan')));
+              Navigator.pushNamed(context, '/management/penjualan/laporan');
             },
           ),
         ],
