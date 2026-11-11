@@ -53,6 +53,7 @@ dependencies:
   http: ^1.6.0
   archive: ^4.5.2
   percent_indicator: ^4.2.5
+  workmanager: ^0.10.10
 
 dev_dependencies:
   flutter_test:

@@ -9,13 +9,16 @@ import 'package:sapiku/utils/utils.dart';
 class FileHandler {
   static Future<String> storeImage(
     String prefix,
-    XFile imgFile,
+    XFile imgFile, {
+    String? filename,
     String? oldImagePath,
-  ) async {
+  }) async {
+    final String extension = imgFile.name.contains('.')
+        ? imgFile.name.split('.').last
+        : '.png'; // Default kosong jika tidak ada ekstensi
     final directory = await getApplicationDocumentsDirectory();
-
-    final filePath =
-        '${directory.path}/$prefix/${DateTime.now().millisecondsSinceEpoch}.png';
+    filename ??= DateTime.now().toUtc().toIso8601String();
+    final filePath = '${directory.path}/$prefix/$filename.$extension';
     final bytes = await imgFile.readAsBytes();
     final File newFile = File(filePath);
     await newFile.parent.create(recursive: true);
@@ -27,6 +30,19 @@ class FileHandler {
         await oldFile.delete();
       }
     }
+    return filePath;
+  }
+
+  static Future<bool> fileExist(String prefix, String path) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final filePath = '${directory.path}/$prefix/$path';
+    final File file = File(filePath);
+    return file.exists();
+  }
+
+  static Future<String> getFilePath(String prefix, String path) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final filePath = '${directory.path}/$prefix/$path';
     return filePath;
   }
 
@@ -87,7 +103,7 @@ class FileHandler {
   }
 
   /// Delete a file using given file path.
-  /// Automatically adding 
+  /// Automatically adding
   static Future<void> deleteFile(String filePath) async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/$filePath');

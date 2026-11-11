@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final supabase = Supabase.instance.client;
 
 class CloudHandler {
+  static bool get isLogged => session!=null;
+  static final session = supabase.auth.currentSession;
   static Future<void> cloudSetup() async {
     /// This setup doesn't need internet
     await Supabase.initialize(
@@ -14,13 +16,11 @@ class CloudHandler {
   }
 
   static Future<bool> ensureSignedIn() async {
-    final session = supabase.auth.currentSession;
-
     if (session == null) {
       return false;
     }
 
-    if (session.isExpired) {
+    if (session!.isExpired) {
       try {
         final response = await supabase.auth.refreshSession();
         return response.session != null;
@@ -40,6 +40,7 @@ class CloudHandler {
       );
       return res.session != null;
     } catch (e) {
+      print("Failed: $e");
       return false;
     }
   }
@@ -67,8 +68,6 @@ class CloudHandler {
       return null;
     }
   }
-
-  static 
 }
 
 class PluginConf {

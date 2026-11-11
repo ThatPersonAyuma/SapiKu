@@ -12,6 +12,7 @@ import 'package:sapiku/utils/file_handler.dart';
 import 'package:sapiku/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
+import 'package:workmanager/workmanager.dart';
 
 // #region Temporary
 /// Simulate setup in download plugin, used in before main
@@ -101,6 +102,7 @@ class ManagementPlugin {
           FOREIGN KEY (transaction_id) REFERENCES ${Transaction.tableName}(id) ON DELETE CASCADE
       );
     """);
+    SyncEngine.setup(batch);
   }
 
   /// For Download all assets needed for the start of the plugin
@@ -177,14 +179,15 @@ class ManagementPlugin {
     // 2. Seed Table Transaction
     // Menggunakan ISO8601 string atau membiarkan SQLite mengisi CURRENT_TIMESTAMP
     batch.insert(Transaction.tableName, {
-      'datetime': DateTime.now().toUtc().toIso8601String(),
+      'datetime': DateTime.parse(
+        '2026-11-06 03:05:52.255158+00',
+      ).toIso8601String(),
     });
 
     batch.insert(Transaction.tableName, {
-      'datetime': DateTime.now()
-          .toUtc()
-          .subtract(const Duration(hours: 1))
-          .toIso8601String(),
+      'datetime': DateTime.parse(
+        '2026-11-06 03:06:18.098768+00',
+      ).toIso8601String(),
     });
 
     // 3. Seed Table TransactionDetail
@@ -258,7 +261,7 @@ class ManagementPlugin {
 
 // #region DB Table Class Bridge
 class Product {
-  static String tableName = "products";
+  static const String tableName = "products";
   static String qrPhotoPath = "qr_images";
   static String productImgPath = "product_images";
 
@@ -268,14 +271,21 @@ class Product {
   int stock;
   String? imagePath;
   String? qrImagePath;
+  late bool isDeleted;
   Product(
     this.id,
     this.name,
     this.price,
     this.stock,
     this.imagePath,
-    this.qrImagePath,
-  ) {
+    this.qrImagePath, {
+    bool? isDeleted,
+  }) {
+    if (isDeleted != null) {
+      this.isDeleted = isDeleted;
+    } else {
+      this.isDeleted = false;
+    }
     _ensureQrImage();
   }
   Map<String, Object?> toMap() {
@@ -284,8 +294,19 @@ class Product {
       "name": name,
       "price": price,
       "stock": stock,
-      "imagePath": imagePath,
-      "qrImagePath": qrImagePath,
+      "image_path": imagePath,
+      "qr_image_path": qrImagePath,
+      "is_deleted": isDeleted,
+    };
+  }
+
+  Map<String, Object?> toCloudMap() {
+    return {
+      "name": name,
+      "price": price,
+      "stock": stock,
+      "image_name": imagePath?.split("/").last,
+      "is_deleted": isDeleted,
     };
   }
 
@@ -297,6 +318,7 @@ class Product {
   }
 
   static Product createFromMap(Map<String, Object?> map) {
+    final isDeleted = (map["is_deleted"] as int) == 1;
     return Product(
       map["id"] as int,
       map["name"] as String,
@@ -304,6 +326,7 @@ class Product {
       map["stock"] as int,
       map["image_path"] as String?,
       map["qr_image_path"] as String?,
+      isDeleted: isDeleted,
     );
   }
 
@@ -412,13 +435,14 @@ class Product {
     // Show error product has same name
     if (res != null && res.isNotEmpty) return null;
     final imgPath = imgFile != null
-        ? (await FileHandler.storeImage(productImgPath, imgFile, null))
+        ? (await FileHandler.storeImage(productImgPath, imgFile))
         : null;
     int? id = await LocalDBHandler.runRawInsertQuery(
       "INSERT INTO $tableName(name, price, stock, image_path) VALUES(?, ?, ?, ?)",
       [name, price, stock, imgPath],
     );
     if (id == null) return null;
+    await CommitTrack.create(Product.tableName, id, CommitType.create);
     return Product(id, name, price, stock, imgPath, null);
   }
 
@@ -431,17 +455,32 @@ class Product {
   }
 
   /// Update stock produk, return int of count if success otherwise null
+  /// This will automatically change this.stock, so don't change the stock value directly
   Future<int?> updateStock(int newStock) async {
-    stock = newStock;
-    return await LocalDBHandler.runRawUpdateQuery(
+    final diff = newStock - stock;
+    final newId = await LocalDBHandler.runRawUpdateQuery(
       "UPDATE $tableName SET stock = ? WHERE id = ?;",
       [stock, id],
     );
+    stock = newStock;
+    if (newId == null) return null;
+    final commitId = await CommitTrack.create(
+      tableName,
+      newId,
+      CommitType.stockUpdate,
+      data: diff.toString(),
+    );
+    if (commitId == null) return null;
+    return newId;
   }
 
   /// Change product image and destroy before if exist also change current imagePath and save to the database
   Future<void> changeProductImage(XFile img) async {
-    imagePath = await FileHandler.storeImage(productImgPath, img, imagePath);
+    imagePath = await FileHandler.storeImage(
+      productImgPath,
+      img,
+      oldImagePath: imagePath,
+    );
     saveToDb();
   }
 
@@ -488,8 +527,9 @@ class Product {
   }
 
   /// Delete a record by given id
-  static Future<void> destroyById(int id) async {
-    // Delete related transaction details first due to foreign key constraint
+  static Future<bool> destroyById(int id) async {
+    // Track Commit
+    await CommitTrack.create(Product.tableName, id, CommitType.delete);
     return await LocalDBHandler.runActionQuery(
       """UPDATE $tableName
        SET is_deleted=?
@@ -499,13 +539,13 @@ class Product {
   }
 
   /// Delete self from local database. Note this is not destroy the instance but only delete from the local database
-  Future<void> destroy() async {
+  Future<bool> destroy() async {
     // Delete related transaction details first due to foreign key constraint
     return await LocalDBHandler.runActionQuery(
       """UPDATE $tableName
-      SET is_deleted=?
+      SET name=?,is_deleted=?
       WHERE id=?""",
-      [boolToInt(true), id],
+      ["deleted_$name", boolToInt(true), id],
     );
   }
 
@@ -519,10 +559,7 @@ class Product {
   }
 
   /// The index page using 1 as the first index
-  static Future<List<Product>?> getPage(
-    int currentPage,
-    int pageSize,
-  ) async {
+  static Future<List<Product>?> getPage(int currentPage, int pageSize) async {
     final totalItem = await getCount();
     if (totalItem == null) return null;
     int maxPage = (totalItem / pageSize).ceil();
@@ -537,11 +574,30 @@ class Product {
       [pageSize, offset],
     );
     if (res == null) return null;
-    return [
-      for (final map
-          in res)
-        Product.createFromMap(map),
-    ];
+    return [for (final map in res) Product.createFromMap(map)];
+  }
+
+  static void upsert(Batch batch, Product product, String? imgPath) {
+    batch.rawInsert(
+      """
+    INSERT INTO ${Product.tableName} (id, name, price, stock, image_path, is_deleted)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      price = excluded.price,
+      stock = excluded.stock,
+      image_path = excluded.image_path,
+      is_deleted = excluded.is_deleted;
+  """,
+      [
+        product.id,
+        product.name,
+        product.price,
+        product.stock,
+        imgPath,
+        boolToInt(product.isDeleted),
+      ],
+    );
   }
 }
 
@@ -551,18 +607,33 @@ class Transaction {
   int id;
   DateTime datetime;
   List<TransactionDetail>? transactionDetails;
+  late bool isDeleted;
 
-  Transaction(this.id, this.datetime);
+  Transaction(this.id, this.datetime, bool? isDeleted) {
+    if (isDeleted != null) {
+      this.isDeleted = isDeleted;
+    } else {
+      this.isDeleted = false;
+    }
+  }
 
   static Transaction createFromMap(Map<String, Object?> map) {
+    bool isDeleted = map.containsKey('is_deleted')
+        ? (map['is_deleted'] as bool)
+        : false;
     return Transaction(
       map["id"] as int,
       strToDateTime(map["datetime"] as String),
+      isDeleted,
     );
   }
 
   Map<String, Object?> toMap() {
     return {'id': id, "datetime": datetime};
+  }
+
+  Map<String, Object?> toCloudMap() {
+    return {"datetime": datetime};
   }
 
   @override
@@ -673,11 +744,12 @@ class Transaction {
       );
     }
     batch.commit(noResult: true);
+    CommitTrack.create(Transaction.tableName, id, CommitType.create);
     return Transaction.getById(id);
   }
 
   /// Delete a record by given id
-  static Future<void> destroyById(int id) async {
+  static Future<bool> destroyById(int id) async {
     return await LocalDBHandler.runActionQuery(
       "DELETE FROM $tableName WHERE id=?",
       [id],
@@ -685,7 +757,7 @@ class Transaction {
   }
 
   /// Delete self from local database. Note this is not destroy the instance but only delete from the local database
-  Future<void> destroy() async {
+  Future<bool> destroy() async {
     return await LocalDBHandler.runActionQuery(
       "DELETE FROM $tableName WHERE id=?",
       [id],
@@ -777,11 +849,19 @@ class Transaction {
       [pageSize, offset],
     );
     if (res == null) return null;
-    return [
-      for (final map
-          in res)
-        Transaction.createFromMap(map),
-    ];
+    return [for (final map in res) Transaction.createFromMap(map)];
+  }
+
+  static void upsert(Batch batch, Transaction transaction) {
+    batch.rawInsert(
+      """
+      INSERT INTO ${Transaction.tableName} (id, datetime)
+      VALUES (?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        datetime = excluded.datetime;
+    """,
+      [transaction.id, transaction.datetime.toIso8601String()],
+    );
   }
 }
 
@@ -885,9 +965,11 @@ class TransactionDetail {
 // #endregion
 
 // #region Utils
+
 /// Class to access utils method for management feature
 class ManageUtils {
   static const _cloudPwKey = "cloudPwKey";
+  static const _lastSyncKey = "lastSyncKey";
 
   static final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(),
@@ -903,12 +985,28 @@ class ManageUtils {
     return _storage.read(key: _cloudPwKey);
   }
 
+  /// Set Last and store it in secure storage
+  static Future<void> setLastSync(DateTime datetime) async {
+    await _storage.write(
+      key: _lastSyncKey,
+      value: datetime.toUtc().toIso8601String(),
+    );
+  }
+
+  /// Get the Last Sync Time (UTC), return null if not set
+  static Future<DateTime?> getLastSync() async {
+    final res = await _storage.read(key: _lastSyncKey);
+    if (res == null) return null;
+    return DateTime.tryParse(res);
+  }
+
   static Future<bool> login() async {
-    final pw = await getCloudSyncPw();
-    if (pw == null) return false;
+    // final pw = await getCloudSyncPw();
+    // if (pw == null) return false;
     final success = await CloudHandler.cloudLogin(
       const String.fromEnvironment("SUPABASE_USER_EMAIL"),
-      pw,
+      const String.fromEnvironment("SUPABASE_USER_KEY"),
+      // // pw,
     );
     return success;
   }
@@ -1003,6 +1101,748 @@ class ManageUtils {
     );
     wb.dispose();
     return true;
+  }
+}
+
+@pragma('vm:entry-point')
+void syncCallback() {
+  Workmanager().executeTask((task, inputData) async {
+    print("=== BACKGROUND SYNC STARTED ===");
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+      await CloudHandler.cloudSetup();
+      await LocalDBHandler.setup();
+      print("=== BACKGROUND SYNC SUCCESS ===");
+
+      // Pastikan SyncEngine.doSync mengembalikan boolean (true jika sukses, false jika gagal)
+      bool success = await SyncEngine.doSync();
+    } catch (err) {
+      print("=== BACKGROUND SYNC FAILED ===");
+      print("Dispatch Sync error: $err");
+    }
+    return true;
+  });
+}
+
+enum CommitType {
+  create,
+  update,
+  stockUpdate,
+  downloadImage,
+  uploadImage,
+  delete,
+}
+
+class CommitTrack {
+  final int id;
+  final String tableName;
+  final int recordId;
+  final CommitType commitType;
+  final DateTime createdAt;
+  final String? data;
+  CommitTrack(
+    this.id,
+    this.tableName,
+    this.recordId,
+    this.commitType,
+    this.createdAt,
+    this.data,
+  );
+  static CommitTrack createFromMap(Map<String, Object?> map) {
+    return CommitTrack(
+      map['id'] as int,
+      map['table_name'] as String,
+      map['record_id'] as int,
+      CommitType.values[map['type'] as int],
+      DateTime.parse(map['created_at'] as String),
+      map['data'] as String?,
+    );
+  }
+
+  static Future<int?> create(
+    String tableName,
+    int recordId,
+    CommitType type, {
+    String? data,
+  }) async {
+    return LocalDBHandler.runRawInsertQuery(
+      """
+      INSERT INTO ${SyncEngine.tableName} (table_name, record_id, type, data)
+      VALUES (?,?,?,?)
+    """,
+      [tableName, recordId, type.index, data],
+    );
+  }
+
+  static List<CommitTrack> createFromMaps(List<Map<String, Object?>> maps) {
+    return [for (final map in maps) CommitTrack.createFromMap(map)];
+  }
+
+  Future<bool> destroy({bool allRelated = false}) async {
+    if (allRelated) {
+      return LocalDBHandler.runActionQuery(
+        """
+        DELETE FROM ${SyncEngine.tableName} 
+        WHERE table_name=?
+          AND record_id=?;
+      """,
+        [tableName, recordId],
+      );
+    } else {
+      return LocalDBHandler.runActionQuery(
+        """
+        DELETE FROM $tableName 
+        WHERE id=?;
+      """,
+        [id],
+      );
+    }
+  }
+}
+
+typedef NewIdProductData = ({int newId, Product product});
+typedef NewIdTransactionData = ({int newId, Transaction transaction});
+
+class SyncEngine {
+  static const tableName = "commit_tracks";
+  static const taskName = "SyncTask";
+  static const taskKey = "ST001";
+  static const interval = Duration(minutes: 2);
+
+  static Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  // Create a reference to the file location
+  static Future<File> get _localFile async {
+    final path = await _localPath;
+    return File('$path/lastSync.txt');
+  }
+
+  static Future<File> writeString(String text) async {
+    final file = await _localFile;
+
+    // Write the file (overwrites existing content by default)
+    return file.writeAsString(text);
+  }
+
+  // Read the string from the file
+  static Future<String> readLastSyncStr() async {
+    try {
+      final file = await _localFile;
+      // Read the contents of the file
+      String contents = await file.readAsString();
+      return contents;
+    } catch (e) {
+      final dateStr = DateTime.parse(
+        '2026-11-07 02:28:50.534194+00',
+      ).toIso8601String();
+      writeString(dateStr);
+      return dateStr;
+    }
+  }
+
+  static void setup(Batch batch) {
+    batch.execute("""
+      CREATE TABLE IF NOT EXISTS $tableName (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        table_name VARCHAR(255) NOT NULL,
+        record_id INTEGER NOT NULL,
+        type INTEGER NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        data TEXT NULL
+      );
+    """);
+  }
+
+  static Future<List<Map<String, dynamic>>> needToSyncTables({
+    String? lastSync,
+  }) async {
+    lastSync ??= await readLastSyncStr();
+    try {
+      final lastRes = await supabase
+          .from('last_edited_tables')
+          .select()
+          .gt('updated_at', lastSync);
+      print("Res needToSync: ${lastRes}");
+      for (final {
+            'id': id as int,
+            'table_name': tableName as String,
+            'updated_at': updatedAt as String,
+          }
+          in lastRes) {
+        print(
+          "id: $id, table_name: $tableName, updated_at: ${DateTime.parse(updatedAt)}, need_to_sync: ${DateTime.parse(lastSync).isBefore(DateTime.parse(updatedAt))}",
+        );
+      }
+      return lastRes;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<List<CommitTrack>?> needPushTables() async {
+    final res = await LocalDBHandler.runRawSelectQuery("""
+      SELECT * FROM ${SyncEngine.tableName} ORDER BY table_name ASC, DATETIME(created_at) ASC; 
+    """);
+    if (res != null) return CommitTrack.createFromMaps(res);
+    return null;
+  }
+
+  /// START
+  /// 1. Inspect all the updated data, which table need to updated
+  /// 2. Pull all data neede for check especially its updated_at
+  /// 3. Check if there is conflicts
+  ///   3.1 True: Resolve first
+  ///     a. write on deleted => drop the update, then update local db (bulk)
+  ///     b. decrease on zero => drop the update, change nothing, sync stock with the pull (cloud) data
+  ///   3.2 False: Pass
+  /// 4. Create query for update (bulk)
+  /// 5. Push query to the cloud
+  /// End
+  static Future<bool> doSync() async {
+    /// Return bool to indicate for workmanager need to retry or not
+    final Batch? batch = LocalDBHandler.getBatch();
+    if (batch == null) return false;
+    if (CloudHandler.isLogged) {
+      if (!await ManageUtils.login()) {
+        // Failed to login
+        return true; // try again next
+      }
+    }
+    final serverDateTime = await _getServerTimestamp();
+    if (serverDateTime == null) {
+      print("Error on getting server timestamp");
+      return false;
+    }
+    String syncDatetimeStr = serverDateTime.toIso8601String();
+    // CloudTableChanged?
+    bool isCloudProductChange = false;
+    bool isCloudTransactionChange = false;
+    // Push?
+    final pushTables = await needPushTables();
+    // push data
+    Iterable<CommitTrack>? transactionCommits;
+    Iterable<CommitTrack>? productCommits;
+    print("push table: $pushTables");
+    if (pushTables != null && pushTables.isNotEmpty) {
+      final tableNames = [Product.tableName, Transaction.tableName];
+      // find the first table name
+      final dividerIdx = pushTables.indexWhere(
+        (commitTrack) => commitTrack.tableName == tableNames.first,
+      );
+      print("Pushing divider: ${dividerIdx}, len: ${pushTables.length} ");
+      if (dividerIdx != -1) {
+        // Meaning there is product commit
+        productCommits = pushTables.take(dividerIdx + 1);
+        // Filter newlyAddedProduct
+        final Iterable<CommitTrack> newlyAddedProducts = productCommits.where(
+          (e) => e.commitType == CommitType.create,
+        );
+        // Newly Added Id
+        final newlyAddedProductIds = newlyAddedProducts
+            .map((el) => el.recordId)
+            .toSet();
+        // Filter non newly added commit (modified)
+        productCommits = productCommits
+            .where(
+              (e) =>
+                  e.commitType != CommitType.create &&
+                  newlyAddedProductIds.contains(e.recordId),
+            )
+            .toList();
+        print(
+          "datas: Product commit$productCommits NewlyAddedProduct: $newlyAddedProducts, NewlyIds: $newlyAddedProductIds",
+        );
+
+        List<NewIdProductData> newData = [];
+        for (final addProduct in newlyAddedProducts) {
+          print("pushing product: ${addProduct}");
+          final data = await _pushNewProduct(batch, addProduct);
+          if (data != null) {
+            newData.add(data);
+          }
+        }
+        if (newData.isNotEmpty) {
+          newData.sort((b, a) => a.newId.compareTo(b.newId));
+          for (final data in newData) {
+            await _updateLocalNewlyAddedProduct(
+              batch,
+              data.newId,
+              data.product,
+            );
+          }
+        }
+        if (newlyAddedProducts.isNotEmpty) isCloudProductChange = true;
+      }
+      final start = pushTables.length - dividerIdx - 1;
+      if (start > 0) {
+        transactionCommits = pushTables.take(start);
+        final Iterable<CommitTrack> newlyAddedTransaction = transactionCommits
+            .where((e) => e.commitType == CommitType.create);
+
+        final newlyAddedTransactionIds = newlyAddedTransaction
+            .map((el) => el.recordId)
+            .toSet();
+
+        transactionCommits = transactionCommits
+            .where(
+              (e) =>
+                  e.commitType != CommitType.create &&
+                  newlyAddedTransactionIds.contains(e.recordId),
+            )
+            .toList();
+
+        List<NewIdTransactionData> newData = [];
+        for (final transData in newlyAddedTransaction) {
+          final data = await _pushNewTransaction(batch, transData);
+          if (data != null) {
+            newData.add(data);
+          }
+        }
+        if (newData.isNotEmpty) {
+          newData.sort((b, a) => a.newId.compareTo(b.newId));
+          for (final data in newData) {
+            await _updateLocalNewlyAddedTransaction(
+              batch,
+              data.newId,
+              data.transaction,
+            );
+          }
+        }
+        if (newlyAddedTransaction.isNotEmpty) isCloudTransactionChange = true;
+      }
+      print("End of Push New Added");
+    }
+    // Update time if any changed changed
+    if (isCloudProductChange) _updateChangedTimeCloud(Product.tableName);
+    if (isCloudTransactionChange)
+      _updateChangedTimeCloud(Transaction.tableName);
+    final datetime = await readLastSyncStr();
+    final syncTables = await SyncEngine.needToSyncTables(lastSync: datetime);
+    List<int>? modifiedProductByCloudIds;
+    List<int>? modifiedTransactionByCloudIds;
+    // Pull Sync
+    if (syncTables.isNotEmpty) {
+      // Need to pull
+      print("Pulling |Sync|");
+      try {
+        // Map<String, Object> pulledDta = {};
+        for (final map in syncTables) {
+          if (map['table_name'] == Product.tableName) {
+            final newProducts = await _getNewCloudProduct(datetime);
+            final excludedIds = [for (final product in newProducts) product.id];
+            final modifiedProducts = await _getCloudProduct(
+              datetime,
+              excludedIds,
+            );
+            final placeholders = List.filled(
+              newProducts.length,
+              '?',
+            ).join(', ');
+            // Check does there is id/name with the same name with the new product form cloud
+            // Name Conflict, Strategy=>change the local to 'local_{name}'
+            final namesToInclude = newProducts.map((p) => p.name).toList();
+            final nameConflictIds = await LocalDBHandler.runRawSelectQuery("""
+              SELECT id FROM ${Product.tableName} 
+              WHERE name IN ($placeholders)
+            """, namesToInclude);
+            if (nameConflictIds == null) return false;
+            for (final id in nameConflictIds) {
+              batch.rawUpdate(
+                """
+                UPDATE ${Product.tableName}
+                SET name = 'local_'||name
+                WHERE id=?
+              """,
+                [id],
+              );
+            }
+            // Then resolve conflicted ID
+            // Strategy=>Upsert, insert if not exist, update if exist.
+            // Drawback can alter the product data
+            List<String> imgPaths = [];
+            for (final product in newProducts) {
+              String? imgPath;
+              if (product.imagePath != null) {
+                imgPath = await FileHandler.getFilePath(
+                  Product.productImgPath,
+                  product.imagePath!,
+                );
+                imgPaths.add(product.imagePath!);
+              }
+              Product.upsert(batch, product, imgPath);
+            }
+            // Download asset if not exist
+            for (final imgName in imgPaths) {
+              if (!(await FileHandler.fileExist(
+                Product.productImgPath,
+                imgName,
+              ))) {
+                // Download
+              }
+            }
+            modifiedProductByCloudIds = [];
+            // Save modified cloud data
+            for (final modifiedProduct in modifiedProducts) {
+              await modifiedProduct.saveToDb();
+              modifiedProductByCloudIds.add(modifiedProduct.id);
+            }
+            // // Then resolve conflicted ID
+            // // Strategy=>move to the last
+            // // Better strategy but complex implementation. Alter ID meaning alter its foreign key
+          }
+          if (map['table_name'] == Transaction.tableName) {
+            final newTransactions = await _getNewCloudTransaction(datetime);
+            final excludedIds = [
+              for (final product in newTransactions) product.id,
+            ];
+            final modifiedTransaction = await _getCloudTransaction(
+              datetime,
+              excludedIds,
+            );
+            // For transaction the only problem is conflicted ID
+            // Resolve with Upsert strategy
+            final List<int> addedIds = [];
+            for (final transaction in newTransactions) {
+              if (transaction.isDeleted) continue;
+              addedIds.add(transaction.id);
+              Transaction.upsert(batch, transaction);
+            }
+            // Then we also need to insert any transaction detail of its related transaction
+            final tdData = await _getNewCloudTransactionDetails(addedIds);
+            await _saveCloudTransactionDetails(batch, tdData);
+            modifiedTransactionByCloudIds = [];
+            // Applay Modification
+            for (final transaction in modifiedTransaction) {
+              if (transaction.isDeleted) {
+                if (!await transaction.destroy()) {
+                  print("Error in pull delete local transaction from cloud");
+                }
+              } else {
+                // Should not be come to here
+                print("saved pulled transaction");
+                await transaction.saveToDB();
+              }
+              modifiedTransactionByCloudIds.add(transaction.id);
+            }
+          }
+        }
+        print("Pull Sync success");
+      } catch (err) {
+        print('error in sync: $err');
+        return false;
+      }
+    }
+    print("Start Push |Sync|");
+    // Push Diff CHANGE
+    // CloudTableChanged?
+    isCloudProductChange = false;
+    isCloudTransactionChange = false;
+    try {
+      if (productCommits != null) {
+        // Before pull diff, filter from modified from cloud
+        // Deletion must be run
+        if (modifiedProductByCloudIds != null) {
+          productCommits = productCommits.where(
+            (e) =>
+                modifiedProductByCloudIds!.contains(e.recordId) &&
+                e.commitType != CommitType.delete,
+          );
+        }
+        await _processProductDiff(batch, productCommits);
+        isCloudProductChange = true;
+      }
+      // Push Diff must be used after pull CHANGE
+      if (transactionCommits != null) {
+        // Before pull diff, filter from modified from cloud
+        // Deletion must be run
+        if (modifiedTransactionByCloudIds != null) {
+          transactionCommits = transactionCommits.where(
+            (e) =>
+                modifiedTransactionByCloudIds!.contains(e.recordId) &&
+                e.commitType != CommitType.delete,
+          );
+        }
+        await _processTransactionDiff(batch, transactionCommits);
+        isCloudTransactionChange = true;
+      }
+    } catch (err) {
+      print("Error on push diff");
+      return false;
+    }
+    print("END Push |Sync|");
+    // Update time if any changed changed
+    if (isCloudProductChange) _updateChangedTimeCloud(Product.tableName);
+    if (isCloudTransactionChange)
+      _updateChangedTimeCloud(Transaction.tableName);
+    writeString(syncDatetimeStr);
+    await batch.commit(noResult: true);
+    return true;
+  }
+
+  static Future<bool> _updateChangedTimeCloud(String tableName) async {
+    try {
+      await supabase
+          .from("last_edited_tables")
+          .update({})
+          .eq("table_name", tableName);
+      return true;
+    } catch (err) {
+      print("Error on updating last updated table");
+      return false;
+    }
+  }
+
+  static Future<DateTime?> _getServerTimestamp() async {
+    try {
+      // Memanggil fungsi RPC yang sudah dibuat di database
+      final response = await supabase.rpc('get_server_time');
+
+      // Response dari rpc akan berupa String (ISO 8601), ubah ke DateTime
+      if (response != null) {
+        return DateTime.parse(response.toString());
+      }
+    } catch (e) {
+      print('Gagal mengambil waktu server: $e');
+    }
+    return null;
+  }
+
+  /// Get the product data that are updated or newly created in cloud
+  static Future<List<Product>> _getNewCloudProduct(String datetime) async {
+    final res = await supabase
+        .from(Product.tableName)
+        .select('id, name, price, stock, image_name, is_deleted')
+        .gt('created_at', datetime);
+    for (final map in res) {
+      map['image_path'] = map['image_name'];
+      map['is_deleted'] = (map['is_deleted'] as bool) ? 1 : 0;
+      if (map['price'] is int) {
+        map['price'] = map['price'].toDouble();
+      }
+    }
+    print("Product: $res");
+    return [for (final map in res) Product.createFromMap(map)];
+  }
+
+  /// Get the product data that are updated or newly created in cloud
+  static Future<List<Product>> _getCloudProduct(
+    String datetime,
+    List<int> excludedId,
+  ) async {
+    final res = await supabase
+        .from(Product.tableName)
+        .select('id, name, price, stock, image_name, is_deleted, updated_at')
+        .gt('updated_at', datetime)
+        .not('id', 'in', excludedId);
+    for (final map in res) {
+      map['image_path'] = map['image_name'];
+    }
+    print("Transaction: $res");
+    return [for (final map in res) Product.createFromMap(map)];
+  }
+
+  /// Get the transaction data that are updated or newly created in cloud
+  static Future<List<Transaction>> _getCloudTransaction(
+    String datetime,
+    List<int> excludedId,
+  ) async {
+    final res = await supabase
+        .from(Transaction.tableName)
+        .select('id, datetime, is_deleted')
+        .gt('updated_at', datetime)
+        .not('id', 'in', excludedId);
+    print("Transaction: $res");
+    return [for (final map in res) Transaction.createFromMap(map)];
+  }
+
+  /// Get the transaction data that are updated or newly created in cloud
+  static Future<List<Transaction>> _getNewCloudTransaction(
+    String datetime,
+  ) async {
+    final res = await supabase
+        .from(Transaction.tableName)
+        .select('id, datetime, is_deleted')
+        .gt('created_at', datetime);
+    print("Transaction: $res");
+    return [for (final map in res) Transaction.createFromMap(map)];
+  }
+
+  /// Get the transaction_Detail data for related transaction id that known as newly added in cloud
+  static Future<List<Map<String, dynamic>>> _getNewCloudTransactionDetails(
+    List<int> ids,
+  ) async {
+    final res = await supabase
+        .from(TransactionDetail.tableName)
+        .select('product_id, transaction_id, quantity')
+        .inFilter('id', ids);
+    print("TransactionDetails: $res");
+    return res;
+  }
+
+  /// Save the cloud transaction data, this approach use insert.
+  /// No transaction data will lost but the id of it will be different from the cloud.
+  /// This chosen because there is no needed to keep track of the transaction detail id,
+  /// as usually this table is accessed by transaction using transaction_id
+  static Future<void> _saveCloudTransactionDetails(
+    Batch batch,
+    List<Map<String, dynamic>> data,
+  ) async {
+    for (final map in data) {
+      batch.rawUpdate(
+        """
+        INSERT INTO ${TransactionDetail.tableName} (product_id, transaction_id, quantity)
+        VALUES (?,?,?);
+      """,
+        [
+          map['product_id'] as int,
+          map['transaction_id'] as int,
+          map['quantity'] as int,
+        ],
+      );
+    }
+  }
+
+  static Future<NewIdTransactionData?> _pushNewTransaction(
+    Batch batch,
+    CommitTrack commitTrack,
+  ) async {
+    try {
+      final transaction = await Transaction.getById(commitTrack.recordId);
+      if (transaction == null) {
+        return null;
+      }
+      final mapData = transaction.toCloudMap();
+      final res = await supabase
+          .from(Transaction.tableName)
+          .insert(mapData)
+          .select('id');
+      if (res.isNotEmpty) {
+        // Change id of current transaction, changing many.
+        // use upsert
+        final newId = res[0]['id'] as int;
+        if (newId != transaction.id) {
+          return (newId: newId, transaction: transaction);
+        }
+        // Push all of the transaction details
+        final tDetails = await transaction.getAllTransactionDetails();
+        if (tDetails == null) {
+          print("Cant get transaction detail in attemp to push data");
+        } else {
+          await supabase.from(TransactionDetail.tableName).insert([
+            for (final td in tDetails) td.toMap(),
+          ]);
+        }
+      } else {
+        print("Cant get the inserted transaction id");
+      }
+      if (!await commitTrack.destroy(allRelated: true)) {
+        print("error on delete commit track");
+      }
+      return null;
+    } catch (err) {
+      print("error in _pushNewTransaction $err");
+      return null;
+    }
+  }
+
+  static Future<NewIdProductData?> _pushNewProduct(
+    Batch batch,
+    CommitTrack commitTrack,
+  ) async {
+    try {
+      final product = await Product.getById(commitTrack.recordId);
+      if (product == null) {
+        return null;
+      }
+      final mapData = product.toCloudMap();
+      final res = await supabase
+          .from(Product.tableName)
+          .insert(mapData)
+          .select('id');
+      if (res.isNotEmpty) {
+        // Change id of current product, changing many.
+        // use upsert
+        final insertedId = res[0]['id'] as int;
+        if (insertedId != product.id) {
+          return (newId: insertedId, product: product);
+        }
+      }
+      if (!await commitTrack.destroy(allRelated: true)) {
+        print("error on delete commit track");
+      }
+      return null;
+    } catch (err) {
+      print("error in _pushNewProduct, err: $err");
+      return null;
+    }
+  }
+
+  /// Push Diff
+  static Future<void> _processProductDiff(
+    Batch batch,
+    Iterable<CommitTrack> datas,
+  ) async {
+    for (final commitTrack in datas) {
+      switch (commitTrack.commitType) {
+        case CommitType.create:
+          continue;
+        case CommitType.delete:
+          break;
+        case CommitType.stockUpdate:
+          break;
+        case CommitType.update:
+          break;
+      }
+      final product = await Product.getById(commitTrack.recordId);
+      if (product == null) {
+        print("Error on pushing product with id ${commitTrack.recordId}");
+        continue;
+      }
+      await supabase
+          .from(Product.tableName)
+          .update(product.toMap())
+          .eq('id', product.id);
+    }
+  }
+
+  /// Push Diff
+  static Future<void> _processTransactionDiff(
+    Batch batch,
+    Iterable<CommitTrack> datas,
+  ) async {
+    for (final commitTrack in datas) {
+      switch (commitTrack.commitType) {
+        case CommitType.create:
+          continue;
+        case CommitType.delete:
+          await supabase
+              .from(Transaction.tableName)
+              .update({'is_deleted': true})
+              .eq('id', commitTrack.recordId);
+          continue;
+        case CommitType.stockUpdate:
+          break;
+        case CommitType.update:
+          break;
+      }
+      final transaction = await Transaction.getById(commitTrack.recordId);
+      if (transaction == null) {
+        print("Error on pushing transaction with id ${commitTrack.recordId}");
+        continue;
+      }
+      await supabase
+          .from(Transaction.tableName)
+          .update(transaction.toMap())
+          .eq('id', transaction.id);
+    }
+  }
+
+  static Future<void> test() async {
+    print("Latest Datetime: ${await SyncEngine.readLastSyncStr()}");
+    await doSync();
   }
 }
 

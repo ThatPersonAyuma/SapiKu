@@ -392,7 +392,7 @@ class DeasesDetection {
     List<ScanComponent> scans,
     String? name,
   ) async {
-    final path = await FileHandler.storeImage(photoDirectory, imgFile, null);
+    final path = await FileHandler.storeImage(photoDirectory, imgFile);
     name ??= DateTime.now().toIso8601String();
     if (name.length > 255) {
       await PopUpMessage.showOkMessage(
@@ -457,7 +457,7 @@ class DeasesDetection {
     List<DetectionResult> detections,
     String? name,
   ) async {
-    final path = await FileHandler.storeImage(photoDirectory, imgFile, null);
+    final path = await FileHandler.storeImage(photoDirectory, imgFile);
     name ??= DateTime.now().toIso8601String();
 
     final id = await LocalDBHandler.runRawInsertQuery(
