@@ -19,6 +19,10 @@ class _DetectionHistoryPageState extends State<DetectionHistoryPage> {
   @override
   void initState() {
     super.initState();
+    _loadHistory();
+  }
+
+  void _loadHistory() {
     _historyFuture = DeasesDetection.getAll();
   }
 
@@ -85,7 +89,11 @@ class _DetectionHistoryPageState extends State<DetectionHistoryPage> {
                               detection: item,
                             ),
                           ),
-                        );
+                        ).then((result) {
+                          if (result == true) {
+                            setState(() => _loadHistory());
+                          }
+                        });
                       },
                     );
                   },

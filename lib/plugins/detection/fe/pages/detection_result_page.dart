@@ -1,14 +1,16 @@
 import 'dart:io';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
+import 'package:sapiku/core/fe/theme/app_colors.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
 import 'package:sapiku/plugins/detection/be/detection_pipeline.dart';
 import 'package:sapiku/plugins/detection/fe/pages/detection_recommendation_page.dart';
+import 'package:sapiku/plugins/detection/be/be_app.dart';
 import 'package:sapiku/plugins/detection/fe/widgets/bounding_box_painter.dart';
 
-class DetectionResultPage extends StatelessWidget {
+class DetectionResultPage extends StatefulWidget {
   final File imageFile;
   final List<DetectionResult> results;
   final ProfilingMetrics metrics;
@@ -21,6 +23,200 @@ class DetectionResultPage extends StatelessWidget {
     required this.metrics,
     required this.imageSize,
   });
+
+  @override
+  State<DetectionResultPage> createState() => _DetectionResultPageState();
+}
+
+class _DetectionResultPageState extends State<DetectionResultPage> {
+  Future<void> _handleSave() async {
+    final nameCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.greenBorder, width: 2),
+              ),
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Simpan Hasil Deteksi',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Nama Hasil (Opsional)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Masukkan nama hasil deteksi',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          String? name = nameCtrl.text.trim().isEmpty
+                              ? null
+                              : nameCtrl.text.trim();
+
+                          await DeasesDetection.create(
+                            XFile(widget.imageFile.path),
+                            widget.results,
+                            name,
+                          );
+
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Hasil deteksi berhasil disimpan')),
+                          );
+                          
+                          if (mounted) {
+                            Navigator.popUntil(
+                              context,
+                              (r) => r.settings.name == '/detection' || r.isFirst,
+                            );
+                          }
+                        } catch (e) {
+                          if (!ctx.mounted) return;
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text('Gagal menyimpan: $e')),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.darkCard,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      child: const Text('Simpan'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showConfirmDialog() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.greenBorder, width: 2),
+          ),
+          padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Simpan Hasil?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Apakah Anda ingin menyimpan hasil deteksi ini?',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.popUntil(
+                        context,
+                        (r) => r.settings.name == '/detection' || r.isFirst,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Tidak'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _handleSave();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.darkCard,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Ya'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +234,12 @@ class DetectionResultPage extends StatelessWidget {
           children: [
             const SizedBox(height: 48),
             _ImageWithBoxes(
-              imageFile: imageFile,
-              results: results,
-              imageSize: imageSize,
+              imageFile: widget.imageFile,
+              results: widget.results,
+              imageSize: widget.imageSize,
             ),
             const SizedBox(height: 16),
-            _ResultSection(results: results),
+            _ResultSection(results: widget.results),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -54,8 +250,8 @@ class DetectionResultPage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => DetectionRecommendationPage(
-                            results: results,
-                            imageFile: XFile(imageFile.path),
+                            results: widget.results,
+                            imageFile: XFile(widget.imageFile.path),
                           ),
                         ),
                       );
@@ -77,10 +273,7 @@ class DetectionResultPage extends StatelessWidget {
                       backgroundColor: Color(0xFF2E2E2E),
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () => Navigator.popUntil(
-                      context,
-                      (r) => r.settings.name == '/detection' || r.isFirst,
-                    ),
+                    onPressed: _showConfirmDialog,
                     child: const Text(
                       'Selesai',
                       style: TextStyle(

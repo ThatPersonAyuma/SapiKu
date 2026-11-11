@@ -172,7 +172,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
     final id = convertIdScanned(rawValue);
 
     if (id == null) {
-      debugPrint('Invalid QR');
+      debugPrint('I/flutter (31273): Invalid QR');
       return;
     }
 
