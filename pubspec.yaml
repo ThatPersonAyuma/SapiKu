@@ -54,6 +54,7 @@ dependencies:
   archive: ^4.5.2
   percent_indicator: ^4.2.5
   workmanager: ^0.10.10
+  uuid: ^4.6.0
 
 dev_dependencies:
   flutter_test:

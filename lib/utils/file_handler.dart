@@ -1,12 +1,20 @@
 import 'dart:io';
 import 'dart:typed_data';
-
+import 'package:uuid/uuid.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sapiku/utils/utils.dart';
 
 class FileHandler {
+  static File? getFile(String filePath) {
+    final File file = File(filePath);
+    if (!file.existsSync()) {
+      return null;
+    }
+    return file;
+  }
+
   static Future<String> storeImage(
     String prefix,
     XFile imgFile, {
@@ -17,7 +25,7 @@ class FileHandler {
         ? imgFile.name.split('.').last
         : '.png'; // Default kosong jika tidak ada ekstensi
     final directory = await getApplicationDocumentsDirectory();
-    filename ??= DateTime.now().toUtc().toIso8601String();
+    filename ??= Uuid().v4();
     final filePath = '${directory.path}/$prefix/$filename.$extension';
     final bytes = await imgFile.readAsBytes();
     final File newFile = File(filePath);
@@ -37,6 +45,12 @@ class FileHandler {
     final directory = await getApplicationDocumentsDirectory();
     final filePath = '${directory.path}/$prefix/$path';
     final File file = File(filePath);
+    return file.exists();
+  }
+
+  /// Use this if you belive the path is already full path
+  static Future<bool> fileExistFullPath(String path) async {
+    final File file = File(path);
     return file.exists();
   }
 

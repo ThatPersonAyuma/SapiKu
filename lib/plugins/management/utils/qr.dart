@@ -32,7 +32,7 @@ Future<Uint8List?> getQrPngbyId(int id) async {
     // 1. Buat painter QR seperti biasa
     final painter = QrPainter(
       data: id.toRadixString(36).toUpperCase(),
-      version: QrVersions.auto,
+      version: 1,
       errorCorrectionLevel: QrErrorCorrectLevel.M,
       gapless: true,
       emptyColor: const Color(0xFFFFFFFF),

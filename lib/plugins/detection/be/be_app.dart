@@ -23,8 +23,8 @@ class DetectionPlugin {
   static const mobNetFileName = "mobilenetv3_f32.tflite";
 
   // #region Detection Images
-  static const imageName1 = "13_jpg.rf.7cbaa11ffeee0cbc54197cb4b2a6d763.jpg";
-  static const imageName2 = "1_jpg.rf.2c3cbd206bd74b6bdd9272dcd85ce73e.jpg";
+  static const imageName1 = "scaled_1000274709.jpg";
+  static const imageName2 = "scaled_1000274707.jpg";
   // #endregion
 
   // #endregion

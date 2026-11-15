@@ -66,10 +66,7 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                   const SizedBox(height: 12),
                   Text(
                     message,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                    ),
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
                   ),
                   const SizedBox(height: 18),
                   Center(
@@ -78,9 +75,17 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.darkCard,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       child: const Text('OK'),
                     ),
@@ -127,9 +132,9 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
     } catch (e) {
       debugPrint('Error scanning QR: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
         _isProcessing = false;
       }
     }
@@ -161,20 +166,34 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                 children: [
                   const Text(
                     'Produk Ditemukan!',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
-                      border: Border.all(color: AppColors.greenBorder, width: 1.4),
+                      border: Border.all(
+                        color: AppColors.greenBorder,
+                        width: 1.4,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       product.name,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -183,18 +202,30 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                     children: [
                       const Text(
                         'Stok Saat Ini',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
                       ),
                       Text(
                         '${product.stock} unit',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
                   const Text(
                     'Tambah Stok',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   TextField(
@@ -202,19 +233,34 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       hintText: 'Masukkan jumlah stok tambahan',
-                      hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      hintStyle: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                        borderSide: const BorderSide(
+                          color: AppColors.greenBorder,
+                          width: 1.4,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8),
+                        borderSide: const BorderSide(
+                          color: AppColors.greenBorder,
+                          width: 1.8,
+                        ),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                        borderSide: const BorderSide(
+                          color: AppColors.greenBorder,
+                          width: 1.4,
+                        ),
                       ),
                     ),
                   ),
@@ -225,19 +271,26 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                         final addStock = int.tryParse(stockController.text);
                         if (addStock == null || addStock < 0) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Input stok tidak valid')),
+                            const SnackBar(
+                              content: Text('Input stok tidak valid'),
+                            ),
                           );
                           return;
                         }
 
                         try {
                           final newStock = product.stock + addStock;
-                          await product.updateStock(newStock);
+                          await product.updateStock(newStock: newStock);
                           if (!ctx.mounted) return;
 
                           Navigator.pop(ctx);
+                          if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Stok produk "${product.name}" berhasil ditambah ${addStock} unit (total: $newStock unit)')),
+                            SnackBar(
+                              content: Text(
+                                'Stok produk "${product.name}" berhasil ditambah ${addStock} unit (total: $newStock unit)',
+                              ),
+                            ),
                           );
 
                           if (mounted) {
@@ -245,17 +298,25 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                           }
                         } catch (e) {
                           if (!ctx.mounted) return;
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
+                          ScaffoldMessenger.of(
+                            ctx,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.darkCard,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       child: const Text('Tambah Stock'),
                     ),
@@ -279,9 +340,19 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
                     color: AppColors.darkCard,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.close_rounded, size: 20, color: Colors.white),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -312,13 +383,13 @@ class _ProductUpdateStockPageState extends State<ProductUpdateStockPage> {
             // Green border frame
             Positioned.fill(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 150,
+                ),
                 child: Container(
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: AppColors.greenBorder,
-                      width: 4,
-                    ),
+                    border: Border.all(color: AppColors.greenBorder, width: 4),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const SizedBox.expand(),
