@@ -24,7 +24,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _product = widget.product;
   }
 
-  String _rp(double v) => 'Rp ${v.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+  String _rp(double v) =>
+      'Rp ${v.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
 
   void _handleDelete() async {
     final confirm = await showDialog<bool>(
@@ -49,7 +50,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 children: [
                   const Text(
                     'Hapus Produk',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -66,9 +71,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey.shade300,
                           foregroundColor: Colors.black87,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         child: const Text('Tidak'),
                       ),
@@ -78,9 +91,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red.shade600,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         child: const Text('Yakin'),
                       ),
@@ -102,9 +123,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     color: AppColors.darkCard,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.close_rounded, size: 20, color: Colors.white),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -117,7 +148,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     setState(() => _deleting = true);
     await _product.destroy();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Produk "${_product.name}" berhasil dihapus')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Produk "${_product.name}" berhasil dihapus')),
+    );
     Navigator.pop(context, true);
   }
 
@@ -149,37 +182,61 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   children: [
                     const Text(
                       'Edit Produk',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     const Text(
                       'Nama Produk',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: nameCtrl,
                       decoration: InputDecoration(
                         hintText: 'Nama produk',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.4,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.8,
+                          ),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.4,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     const Text(
                       'Harga',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     TextField(
@@ -187,25 +244,41 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         hintText: 'Harga',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.4,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.8,
+                          ),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.4,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     const Text(
                       'Stok',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     TextField(
@@ -213,18 +286,30 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         hintText: 'Stok',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.4,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.8,
+                          ),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          borderSide: const BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 1.4,
+                          ),
                         ),
                       ),
                     ),
@@ -238,7 +323,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
                           if (name.isEmpty || price == null || stock == null) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(content: Text('Semua field harus diisi dengan benar')),
+                              const SnackBar(
+                                content: Text(
+                                  'Semua field harus diisi dengan benar',
+                                ),
+                              ),
                             );
                             return;
                           }
@@ -246,15 +335,23 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           try {
                             _product.name = name;
                             _product.price = price;
-                            _product.stock = stock;
-                            await _product.saveToDb();
+                            // Edited by Backend
+                            // Use update stock instead so it will be tracket by commit
+                            final otherChanged = _product.name == name || _product.price == price;
+                            if (_product.stock != stock) {
+                              await _product.updateStock(newStock: stock, saveAll: otherChanged);
+                            } else {
+                              await _product.saveToDb();
+                            }
 
                             if (!ctx.mounted) return;
                             Navigator.pop(ctx);
 
                             setState(() {});
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Produk berhasil diperbarui')),
+                              const SnackBar(
+                                content: Text('Produk berhasil diperbarui'),
+                              ),
                             );
                           } catch (e) {
                             if (!ctx.mounted) return;
@@ -266,9 +363,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.darkCard,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 28,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         child: const Text('Simpan'),
                       ),
@@ -290,9 +395,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     color: AppColors.darkCard,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.close_rounded, size: 20, color: Colors.white),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -304,13 +419,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   Future<void> _handleDownloadQr() async {
     if (_product.qrImagePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('QR belum tersedia')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('QR belum tersedia')));
       return;
     }
     final success = await _product.saveQRtoGallery();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(success ? 'QR berhasil disimpan ke galeri' : 'Gagal menyimpan QR')),
+      SnackBar(
+        content: Text(
+          success ? 'QR berhasil disimpan ke galeri' : 'Gagal menyimpan QR',
+        ),
+      ),
     );
   }
 
@@ -336,8 +457,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -345,38 +464,59 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       appBar: const SapikuAppBar(title: 'Detail Produk'),
       body: AppBackground(
         child: ListView(
-          padding: const EdgeInsets.only(left: 14, right: 14, top: 140, bottom: 90),
+          padding: const EdgeInsets.only(
+            left: 14,
+            right: 14,
+            top: 140,
+            bottom: 90,
+          ),
           children: [
             IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border(
-                        right: BorderSide(color: AppColors.greenBorder, width: 2),
-                        bottom: BorderSide(color: AppColors.greenBorder, width: 2),
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
                       ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _product.name,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border(
+                          right: BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 2,
+                          ),
+                          bottom: BorderSide(
+                            color: AppColors.greenBorder,
+                            width: 2,
+                          ),
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _product.name,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border(
-                        bottom: BorderSide(color: Colors.blue.shade700, width: 3),
+                        bottom: BorderSide(
+                          color: Colors.blue.shade700,
+                          width: 3,
+                        ),
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -391,7 +531,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border(
-                        bottom: BorderSide(color: Colors.red.shade700, width: 3),
+                        bottom: BorderSide(
+                          color: Colors.red.shade700,
+                          width: 3,
+                        ),
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -401,8 +544,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       onPressed: _deleting ? () {} : _handleDelete,
                     ),
                   ),
-              ],
-            ),
+                ],
+              ),
             ),
             const SizedBox(height: 14),
             Row(
@@ -416,12 +559,24 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.grey.shade200,
-                          border: Border.all(color: AppColors.greenBorder, width: 2),
+                          border: Border.all(
+                            color: AppColors.greenBorder,
+                            width: 2,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: (_product.imagePath != null && File(_product.imagePath!).existsSync())
-                            ? Image.file(File(_product.imagePath!), fit: BoxFit.cover)
-                            : const Icon(Icons.image, color: Colors.grey, size: 40),
+                        child:
+                            (_product.imagePath != null &&
+                                File(_product.imagePath!).existsSync())
+                            ? Image.file(
+                                File(_product.imagePath!),
+                                fit: BoxFit.cover,
+                              )
+                            : const Icon(
+                                Icons.image,
+                                color: Colors.grey,
+                                size: 40,
+                              ),
                       ),
                     ),
                   ),
@@ -437,9 +592,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           width: 140,
                           height: 140,
                           color: Colors.grey.shade200,
-                          child: (_product.qrImagePath != null && File(_product.qrImagePath!).existsSync())
-                              ? Image.file(File(_product.qrImagePath!), fit: BoxFit.cover)
-                              : const Icon(Icons.qr_code_2_rounded, color: Colors.grey, size: 30),
+                          child:
+                              (_product.qrImagePath != null &&
+                                  File(_product.qrImagePath!).existsSync())
+                              ? Image.file(
+                                  File(_product.qrImagePath!),
+                                  fit: BoxFit.cover,
+                                )
+                              : const Icon(
+                                  Icons.qr_code_2_rounded,
+                                  color: Colors.grey,
+                                  size: 30,
+                                ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -451,8 +615,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             backgroundColor: AppColors.darkCard,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           icon: const Icon(Icons.download_rounded, size: 14),
                           label: const Text('Download'),
@@ -472,7 +641,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   children: [
                     const Text(
                       'Deskripsi',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -484,7 +657,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                         Text(
                           _rp(_product.price),
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
                         ),
                       ],
                     ),
@@ -498,7 +675,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                         Text(
                           '${_product.stock} unit',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
                         ),
                       ],
                     ),

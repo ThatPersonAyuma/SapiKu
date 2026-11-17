@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -5,11 +6,46 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sapiku/utils/utils.dart';
 
 class CloudinaryHandler {
-  static Future<String?> downloadAndStoreImage(String prefix, String filename) async {
+  static const String cloudName = 'tdjglugb';
+  static const String uploadPreset = 'sapiku_upload';
+  static Future<String?> downloadCloudImage(
+    String prefix,
+    String filename,
+  ) async {
     try {
       final response = await http.get(
         Uri.parse(
-          "https://res.cloudinary.com/tdjglugb/image/upload/v1792624511/$filename",
+          "https://res.cloudinary.com/tdjglugb/image/upload/v1794695519/sapiku/management/$filename",
+        ),
+      );
+      print(
+        "url: https://res.cloudinary.com/tdjglugb/image/upload/v1794695519/sapiku/management/$filename",
+      );
+      if (response.statusCode == 200) {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$prefix/$filename');
+        await file.create(recursive: true);
+        await file.writeAsBytes(response.bodyBytes);
+        print('Gambar berhasil disimpan di: ${file.path}');
+        return file.path;
+      } else {
+        print('Gagal mengunduh. Kode status: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Terjadi kesalahan: $e');
+      return null;
+    }
+  }
+
+  static Future<String?> downloadAndStoreImage(
+    String prefix,
+    String filename,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          "https://res.cloudinary.com/tdjglugb/image/upload/v1794695519/sapiku/management/$filename",
         ),
       );
 
@@ -22,17 +58,86 @@ class CloudinaryHandler {
         return file.path;
       } else {
         print('Gagal mengunduh. Kode status: ${response.statusCode}');
-        await PopUpMessage.showOkMessage(PopUpTitle.error, "Terjadi kesalahan pada pengunduhan aset gambar.");
+        await PopUpMessage.showOkMessage(
+          PopUpTitle.error,
+          "Terjadi kesalahan pada pengunduhan aset gambar.",
+        );
         return null;
       }
     } catch (e) {
       print('Terjadi kesalahan: $e');
-      await PopUpMessage.showOkMessage(PopUpTitle.error, "Terjadi kesalahan pada sistem pengambilan gambar.");
+      await PopUpMessage.showOkMessage(
+        PopUpTitle.error,
+        "Terjadi kesalahan pada sistem pengambilan gambar.",
+      );
       return null;
     }
   }
 
-  static Future<bool> uploadImage(XFile imgFile, String filename)async{
-    return true;
+  /// Mengecek dan mengupload file jika belum ada berdasarkan [fileName] (tanpa ekstensi).
+  /// Mengembalikan `secure_url` file tersebut.
+  static Future<String?> uploadIfNotExists({
+    required File file,
+    required String
+    fileName, // Contoh: 'produk_123' (jangan sertakan .jpg/.png)
+    String folder = 'sapiku/management',
+  }) async {
+    print("filename: ${file.path}");
+    final String publicId = fileName;
+
+    // 1. Cek terlebih dahulu lewat URL publik (opsional, menghemat bandwidth upload)
+    final existingUrl = await checkFileExistsByUrl(publicId: publicId);
+    if (existingUrl != null) {
+      print('File sudah ada di Cloudinary: $existingUrl');
+      return existingUrl;
+    }
+
+    // 2. Jika belum ada, lakukan upload dengan overwrite = false
+    final uri = Uri.parse(
+      'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+    );
+
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['upload_preset'] = uploadPreset
+      // ..fields['public_id'] = fileName // atau full path jika tidak pakai field 'folder'
+      ..fields['folder'] = folder
+      ..files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return data['secure_url'] as String?;
+    } else {
+      // Menangani kondisi jika file ternyata sudah ada saat proses upload
+      final errorMessage = data['error']?['message']?.toString() ?? '';
+      if (errorMessage.contains('already exists')) {
+        return 'https://res.cloudinary.com/$cloudName/image/upload/$publicId';
+      }
+      print('Gagal upload Cloudinary: $errorMessage');
+      return null;
+    }
+  }
+
+  /// Mengecek apakah file sudah ada menggunakan HTTP HEAD ke URL publik Cloudinary
+  static Future<String?> checkFileExistsByUrl({
+    required String publicId,
+    String resourceType = 'image',
+  }) async {
+    // Cloudinary otomatis meresolusi format jika ekstensi tidak ditulis,
+    // atau tambahkan ekstensi spesifik seperti .jpg / .png jika formatnya pasti.
+    final url =
+        'https://res.cloudinary.com/$cloudName/$resourceType/upload/$publicId';
+
+    try {
+      final response = await http.head(Uri.parse(url));
+      if (response.statusCode == 200) {
+        return url;
+      }
+    } catch (e) {
+      print('Error saat mengecek URL Cloudinary: $e');
+    }
+    return null;
   }
 }

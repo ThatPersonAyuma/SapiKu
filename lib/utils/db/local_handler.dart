@@ -40,11 +40,16 @@ class LocalDBHandler {
   /// Run Query String that doesn't return anything.
   /// Only run single execution, indicate by ';'.
   /// Call it action query.
-  static Future<void> runActionQuery(
+  static Future<bool> runActionQuery(
     String query, [
     List<Object?>? arguments,
   ]) async {
-    await db?.execute(query, arguments);
+    try {
+      await db?.execute(query, arguments);
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   /// Run Query on specific table and retrieve all that need to return something
@@ -70,7 +75,12 @@ class LocalDBHandler {
       // Show Error
       return null;
     } else {
-      return await db!.rawQuery(query, arguments);
+      try {
+        return await db!.rawQuery(query, arguments);
+      } catch (err) {
+        print("Error on raw select query, $err");
+        return null;
+      }
     }
   }
 
@@ -96,7 +106,13 @@ class LocalDBHandler {
       // Show Error
       return null;
     } else {
-      return await db!.rawUpdate(query, arguments);
+      try {
+        final res = await db!.rawUpdate(query, arguments);
+        return res;
+      } catch (err) {
+        print("Error on raw update");
+        return null;
+      }
     }
   }
 
@@ -124,7 +140,7 @@ class Plugin {
       map['id'] as int,
       map['name'] as String,
       (map['is_setup'] as int) == 1,
-      map['version'] as String
+      map['version'] as String,
     );
   }
 

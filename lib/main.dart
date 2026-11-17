@@ -1,22 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/core/fe/routing/app_router.dart';
 import 'package:sapiku/plugins/management/be/be_app.dart';
-import 'package:sapiku/plugins/management/be/testing.dart';
-import 'package:sapiku/plugins/management/fe_app.dart';
+import 'package:sapiku/plugins/management/be/uploadImageTest.dart';
 import 'package:sapiku/utils/db/cloud_handler.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
+import 'package:workmanager/workmanager.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  // await Workmanager().initialize(syncCallback);
+  // Workmanager().registerOneOffTask(
+  //   SyncEngine.taskKey,
+  //   SyncEngine.taskName,
+  //   constraints: Constraints(
+  //     networkType: NetworkType.connected,
+  //   ),
+  // );
+  // await Workmanager().registerPeriodicTask(
+  //   SyncEngine.taskKey,
+  //   SyncEngine.taskName,
+  //   frequency: SyncEngine.interval,
+  //   constraints: Constraints(
+  //     networkType: NetworkType.connected,
+  //   )
+  // );
   // #region setup
   await CloudHandler.cloudSetup();
-  await CloudHandler.test();
   await LocalDBHandler.setup();
-  // await managementSetup();
-  // await manageTest();
+  await CloudHandler.test();
+  await SyncEngine.test();
+  print("Login Res: ${await ManageUtils.login()}");
   // #endregion
 
   runApp(const MyApp());
@@ -30,7 +45,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SapiKu',
       theme: ThemeData(useMaterial3: true, fontFamily: 'Poppins'),
-      // home: DatabaseTestScreen(),
+      // home: CloudinaryTestPage(),
       navigatorKey: navigatorKey,
       initialRoute: AppRouter.home,
       onGenerateRoute: AppRouter.onGenerateRoute,
