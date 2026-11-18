@@ -2374,9 +2374,9 @@ class SyncEngine {
       fileName: filename,
     );
     if (res != null) {
-      // if (!await commit.destroy()) {
-      //   print("Error on destroy commit track diff product");
-      // }
+      if (!await commit.destroy()) {
+        print("Error on destroy commit track diff product");
+      }
       print("success uploaded: $res");
     } else {
       print("error uploaded: $res");

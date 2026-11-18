@@ -194,25 +194,3 @@ class _QRScannerPageState extends State<QRScannerPage> {
     );
   }
 }
-
-// class GenerateScreen extends StatelessWidget {
-//   final int id;
-//   const GenerateScreen({required this.id, super.key});
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: Text('Buat QR Code')),
-//       body: Center(
-//         child: QrImageView(
-//           data: this.id
-//               .toRadixString(36)
-//               .toUpperCase(), // Data yang ingin di-encode
-//           version: 1,
-//           size: 80.0,
-//           errorCorrectionLevel: QrErrorCorrectLevel.Q,
-//           backgroundColor: Colors.white,
-//         ),
-//       ),
-//     );
-//   }
-// }
