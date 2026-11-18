@@ -10,27 +10,19 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await Workmanager().initialize(syncCallback);
-  // Workmanager().registerOneOffTask(
-  //   SyncEngine.taskKey,
-  //   SyncEngine.taskName,
-  //   constraints: Constraints(
-  //     networkType: NetworkType.connected,
-  //   ),
-  // );
-  // await Workmanager().registerPeriodicTask(
-  //   SyncEngine.taskKey,
-  //   SyncEngine.taskName,
-  //   frequency: SyncEngine.interval,
-  //   constraints: Constraints(
-  //     networkType: NetworkType.connected,
-  //   )
-  // );
+  await Workmanager().initialize(syncCallback);
+  await Workmanager().registerPeriodicTask(
+    SyncEngine.taskKeySync,
+    SyncEngine.taskNameSync,
+    frequency: SyncEngine.interval,
+    constraints: Constraints(
+      networkType: NetworkType.connected,
+    )
+  );
   // #region setup
   await CloudHandler.cloudSetup();
   await LocalDBHandler.setup();
   await CloudHandler.test();
-  await SyncEngine.test();
   print("Login Res: ${await ManageUtils.login()}");
   // #endregion
 
