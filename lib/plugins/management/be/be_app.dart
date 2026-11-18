@@ -1033,7 +1033,6 @@ class TransactionDetail {
 /// Class to access utils method for management feature
 class ManageUtils {
   static const _cloudPwKey = "cloudPwKey";
-  static const _lastSyncKey = "lastSyncKey";
 
   static final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(),
@@ -1049,28 +1048,13 @@ class ManageUtils {
     return _storage.read(key: _cloudPwKey);
   }
 
-  /// Set Last and store it in secure storage
-  static Future<void> setLastSync(DateTime datetime) async {
-    await _storage.write(
-      key: _lastSyncKey,
-      value: datetime.toUtc().toIso8601String(),
-    );
-  }
-
-  /// Get the Last Sync Time (UTC), return null if not set
-  static Future<DateTime?> getLastSync() async {
-    final res = await _storage.read(key: _lastSyncKey);
-    if (res == null) return null;
-    return DateTime.tryParse(res);
-  }
-
   static Future<bool> login() async {
-    // final pw = await getCloudSyncPw();
-    // if (pw == null) return false;
+    final pw = await getCloudSyncPw();
+    if (pw == null) return false;
     final success = await CloudHandler.cloudLogin(
       const String.fromEnvironment("SUPABASE_USER_EMAIL"),
-      const String.fromEnvironment("SUPABASE_USER_KEY"),
-      // // pw,
+      pw,
+      // const String.fromEnvironment("SUPABASE_USER_KEY"),
     );
     return success;
   }
@@ -1272,7 +1256,7 @@ class CommitTrack {
   }) async {
     return LocalDBHandler.runRawInsertQuery(
       """
-      INSERT INTO ${SyncEngine.commitTableName} (table_name, record_id, type, data)
+      INSERT INTO ${SyncEngine._commitTableName} (table_name, record_id, type, data)
       VALUES (?,?,?,?)
     """,
       [tableName, recordId, type.index, data],
@@ -1287,7 +1271,7 @@ class CommitTrack {
     if (allRelated) {
       return await LocalDBHandler.runActionQuery(
         """
-        DELETE FROM ${SyncEngine.commitTableName} 
+        DELETE FROM ${SyncEngine._commitTableName} 
         WHERE table_name=?
           AND record_id=?
           AND type!=?;
@@ -1297,7 +1281,7 @@ class CommitTrack {
     } else {
       return await LocalDBHandler.runActionQuery(
         """
-        DELETE FROM ${SyncEngine.commitTableName} 
+        DELETE FROM ${SyncEngine._commitTableName} 
         WHERE id=?;
       """,
         [id],
@@ -1315,7 +1299,7 @@ class CommitTrack {
   }) async {
     final idData = await LocalDBHandler.runRawSelectQuery(
       """
-      SELECT id FROM ${SyncEngine.commitTableName}
+      SELECT id FROM ${SyncEngine._commitTableName}
       WHERE table_name=? AND record_id=? AND type=?;
     """,
       [tableName, recordId, type.index],
@@ -1330,7 +1314,7 @@ class CommitTrack {
       final id = idData[0]['id'] as int;
       return await LocalDBHandler.runRawUpdateQuery(
         """
-        UPDATE ${SyncEngine.commitTableName} 
+        UPDATE ${SyncEngine._commitTableName} 
         SET data=?
         WHERE id=?;
       """,
@@ -1366,7 +1350,7 @@ class CommitStockUpdated {
     try {
       await LocalDBHandler.runActionQuery(
         """
-        DELETE FROM ${SyncEngine.commitTableName} 
+        DELETE FROM ${SyncEngine._commitTableName} 
         WHERE table_name=? AND record_id=?;
       """,
         [Product.tableName, recordId],
@@ -1388,49 +1372,17 @@ typedef NewIdProductData = ({int newId, Product product});
 typedef NewIdTransactionData = ({int newId, Transaction transaction});
 
 class SyncEngine {
-  static const commitTableName = "commit_tracks";
-  static const lastSyncsTableName = "last_syncs";
-  static const taskNamePull = "SyncTaskPull";
-  static const taskNamePushDiff = "SyncTaskPushDiff";
+  static const _commitTableName = "commit_tracks";
+  static const _lastSyncsTableName = "last_syncs";
+  static const taskNameSync = "SyncTask";
+  static const taskKeySync = "ST-001";
+  static const _taskNamePull = "SyncTaskPull";
   static const interval = Duration(minutes: 15);
-
-  static Future<String> get _localPath async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
-  }
-
-  // Create a reference to the file location
-  static Future<File> get _localFile async {
-    final path = await _localPath;
-    return File('$path/lastSync.txt');
-  }
-
-  static Future<File> writeString(String text) async {
-    final file = await _localFile;
-
-    // Write the file (overwrites existing content by default)
-    return file.writeAsString(text);
-  }
-
-  // Read the string from the file
-  static Future<String> readLastSyncStr() async {
-    try {
-      final file = await _localFile;
-      // Read the contents of the file
-      String contents = await file.readAsString();
-      return contents;
-    } catch (e) {
-      final dateStr = DateTime.parse(
-        '2026-11-07 02:28:50.534194+00',
-      ).toIso8601String();
-      writeString(dateStr);
-      return dateStr;
-    }
-  }
+  static bool isSyncing = false;
 
   static void setup(Batch batch) {
     batch.execute("""
-      CREATE TABLE IF NOT EXISTS $commitTableName (
+      CREATE TABLE IF NOT EXISTS $_commitTableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         table_name VARCHAR(255) NOT NULL,
         record_id INTEGER NOT NULL,
@@ -1440,7 +1392,7 @@ class SyncEngine {
       );
     """);
     batch.execute("""
-      CREATE TABLE IF NOT EXISTS $lastSyncsTableName (
+      CREATE TABLE IF NOT EXISTS $_lastSyncsTableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(255) NOT NULL,
         data TEXT NULL
@@ -1448,111 +1400,114 @@ class SyncEngine {
     """);
   }
 
-  static Future<DateTime?> getLastPullProduct() async {
+  static Future<DateTime?> _getLastPullProduct() async {
     final res = await LocalDBHandler.runRawSelectQuery(
       """
-    SELECT time FROM $lastSyncsTableName 
+    SELECT time FROM $_lastSyncsTableName 
     WHERE name=?;
     """,
-      [taskNamePull + Product.tableName],
+      [_taskNamePull + Product.tableName],
     );
     if (res == null) return null;
-    return DateTime.parse(res[0]['time'] as String);
+    if (res.isEmpty) {
+      final date = DateTime.parse('2026-11-07 02:28:50.534194+00');
+      await _setLastPullProduct(date);
+      return date;
+    } else {
+      return DateTime.parse(res[0]['time'] as String);
+    }
   }
 
-  static Future<int?> setLastPullProduct(DateTime time) async {
+  static Future<int?> _setLastPullProduct(DateTime time) async {
     final updatedId = await LocalDBHandler.runRawUpdateQuery(
       """
-    UPDATE $lastSyncsTableName 
+    UPDATE $_lastSyncsTableName 
     SET time=?
     WHERE name=?;
     """,
-      [time.toUtc().toIso8601String(), taskNamePull + Product.tableName],
+      [time.toUtc().toIso8601String(), _taskNamePull + Product.tableName],
     );
     return updatedId;
   }
 
-  static Future<DateTime?> getLastPullTransaction() async {
+  static Future<DateTime?> _getLastPullTransaction() async {
     final res = await LocalDBHandler.runRawSelectQuery(
       """
-    SELECT time FROM $lastSyncsTableName 
+    SELECT time FROM $_lastSyncsTableName 
     WHERE name=?;
     """,
-      [taskNamePull + Transaction.tableName],
+      [_taskNamePull + Transaction.tableName],
     );
     if (res == null) return null;
-    return DateTime.parse(res[0]['time'] as String);
+    if (res.isEmpty) {
+      final date = DateTime.parse('2026-11-07 02:28:50.534194+00');
+      await _setLastPullTransaction(date);
+      return date;
+    } else {
+      return DateTime.parse(res[0]['time'] as String);
+    }
   }
 
-  static Future<int?> setLastPullTransaction(DateTime time) async {
+  static Future<int?> _setLastPullTransaction(DateTime time) async {
     final updatedId = await LocalDBHandler.runRawUpdateQuery(
       """
-    UPDATE $lastSyncsTableName 
+    UPDATE $_lastSyncsTableName 
     SET time=?
     WHERE name=?;
     """,
-      [time.toUtc().toIso8601String(), taskNamePull + Transaction.tableName],
+      [time.toUtc().toIso8601String(), _taskNamePull + Transaction.tableName],
     );
     return updatedId;
   }
 
-  static Future<DateTime?> getLastPullTransactionDeatil() async {
-    final res = await LocalDBHandler.runRawSelectQuery(
-      """
-    SELECT time FROM $lastSyncsTableName 
-    WHERE name=?;
-    """,
-      [taskNamePull + TransactionDetail.tableName],
-    );
-    if (res == null) return null;
-    return DateTime.parse(res[0]['time'] as String);
-  }
-
-  static Future<int?> setLastPullTransactionDetail(DateTime time) async {
-    final updatedId = await LocalDBHandler.runRawUpdateQuery(
-      """
-    UPDATE $lastSyncsTableName 
-    SET time=?
-    WHERE name=?;
-    """,
-      [
-        time.toUtc().toIso8601String(),
-        taskNamePull + TransactionDetail.tableName,
-      ],
-    );
-    return updatedId;
-  }
-
-  static Future<List<Map<String, dynamic>>> needToSyncTables({
-    String? lastSync,
+  static Future<List<Map<String, dynamic>>> _needToSyncProduct({
+    required String lastSync,
   }) async {
-    lastSync ??= await readLastSyncStr();
     try {
       final lastRes = await supabase
           .from('last_edited_tables')
           .select()
+          .eq('table_name', Product.tableName)
           .gt('updated_at', lastSync)
           .order('table_name', ascending: true);
-      print("Res needToSync: ${lastRes}");
-      for (final {
-            'id': id as int,
-            'table_name': tableName as String,
-            'updated_at': updatedAt as String,
-          }
-          in lastRes) {
-        print(
-          "id: $id, table_name: $tableName, updated_at: ${DateTime.parse(updatedAt)}, need_to_sync: ${DateTime.parse(lastSync).isBefore(DateTime.parse(updatedAt))}",
-        );
-      }
+      print("Res needToSync Product: $lastRes");
+
       return lastRes;
     } catch (e) {
       return [];
     }
   }
 
-  static Future<bool> isNeedPushTables() async {
+  static Future<List<Map<String, dynamic>>> _needToSynTransaction({
+    required String lastSync,
+  }) async {
+    try {
+      final lastRes = await supabase
+          .from('last_edited_tables')
+          .select()
+          .eq('table_name', Transaction.tableName)
+          .gt('updated_at', lastSync)
+          .order('table_name', ascending: true);
+      print("Res needToSync Transaction: $lastRes");
+      // for (final {
+      //       'id': id as int,
+      //       'table_name': tableName as String,
+      //       'updated_at': updatedAt as String,
+      //     }
+      //     in lastRes) {
+      //   print(
+      //     "id: $id, table_name: $tableName, updated_at: ${DateTime.parse(updatedAt)}, need_to_sync: ${DateTime.parse(lastSync).isBefore(DateTime.parse(updatedAt))}",
+      //   );
+      // }
+      return lastRes;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<bool> _isNeedPushTables() async {
     final res = await LocalDBHandler.runRawSelectQuery("""
-      SELECT 1 FROM ${SyncEngine.commitTableName} LIMIT 1;
+      SELECT 1 FROM ${SyncEngine._commitTableName} LIMIT 1;
     """);
 
     return res != null && res.isNotEmpty;
@@ -1561,7 +1516,7 @@ class SyncEngine {
   static Future<List<CommitTrack>?> _getNewlyAddedProduct() async {
     final res = await LocalDBHandler.runRawSelectQuery(
       """
-      SELECT * FROM ${SyncEngine.commitTableName}
+      SELECT * FROM ${SyncEngine._commitTableName}
       WHERE table_name=? AND type=?
       ORDER BY table_name ASC, DATETIME(created_at) ASC; 
     """,
@@ -1574,7 +1529,7 @@ class SyncEngine {
   static Future<List<CommitTrack>?> _getNewlyAddedTransaction() async {
     final res = await LocalDBHandler.runRawSelectQuery(
       """
-      SELECT * FROM ${SyncEngine.commitTableName}
+      SELECT * FROM ${SyncEngine._commitTableName}
       WHERE table_name=? AND type=?
       ORDER BY table_name ASC, DATETIME(created_at) ASC; 
     """,
@@ -1589,7 +1544,7 @@ class SyncEngine {
       """
       SELECT 
         record_id, 
-        SUM(CAST(data as INTEGER)) as quantity FROM ${SyncEngine.commitTableName}
+        SUM(CAST(data as INTEGER)) as quantity FROM ${SyncEngine._commitTableName}
       WHERE table_name=? AND type=?
       GROUP BY record_id
       ORDER BY table_name ASC, DATETIME(created_at) ASC; 
@@ -1606,7 +1561,7 @@ class SyncEngine {
   static Future<List<CommitTrack>?> _getProductCommitWorks() async {
     final res = await LocalDBHandler.runRawSelectQuery(
       """
-      SELECT * FROM ${SyncEngine.commitTableName}
+      SELECT * FROM ${SyncEngine._commitTableName}
       WHERE table_name=? AND type!=?
       GROUP BY record_id
       ORDER BY table_name ASC, DATETIME(created_at) ASC; 
@@ -1623,7 +1578,7 @@ class SyncEngine {
   static Future<List<CommitTrack>?> _getTransactionCommitWorks() async {
     final res = await LocalDBHandler.runRawSelectQuery(
       """
-      SELECT *FROM ${SyncEngine.commitTableName}
+      SELECT *FROM ${SyncEngine._commitTableName}
       WHERE table_name=? AND type!=?
       ORDER BY DATETIME(created_at) ASC; 
     """,
@@ -1674,10 +1629,8 @@ class SyncEngine {
     }
 
     // CloudTableChanged?
-    // bool isCloudProductChange = false;
-    // bool isCloudTransactionChange = false;
-    // Push?
-    final needToPush = await isNeedPushTables();
+    // Push new Product/Transaction?
+    final needToPush = await _isNeedPushTables();
     if (needToPush) {
       // Batch commit
       final Batch? batch = LocalDBHandler.getBatch();
@@ -1752,17 +1705,15 @@ class SyncEngine {
     } else {
       print("Error on getting updatedStock");
     }
-    // Update time if any changed changed
-    // if (isCloudProductChange) {
-    //   _updateChangedTimeCloud(Product.tableName);
-    // }
-    // if (isCloudTransactionChange) {
-    //   _updateChangedTimeCloud(Transaction.tableName);
-    // }
-    final datetime = await readLastSyncStr();
-    final syncTables = await SyncEngine.needToSyncTables(lastSync: datetime);
+    // Pull Product
+    final datetimeTime = await _getLastPullProduct();
+    if (datetimeTime == null) {
+      print("Gagal mendapatkan last pull product");
+      return false;
+    }
+    final datetime = datetimeTime.toIso8601String();
+    final syncTables = await SyncEngine._needToSyncProduct(lastSync: datetime);
     List<int>? modifiedProductByCloudIds;
-    List<int>? modifiedTransactionByCloudIds;
     // Pull Sync
     if (syncTables.isNotEmpty) {
       // Need to pull
@@ -1778,131 +1729,138 @@ class SyncEngine {
       if (batch == null) return false;
       // try {
       // Map<String, Object> pulledDta = {};
-      for (final map in syncTables) {
-        if (map['table_name'] == Product.tableName) {
-          final newProducts = await _getNewCloudProduct(
-            datetime,
-            syncDatetimeStr,
+      final newProducts = await _getNewCloudProduct(datetime, syncDatetimeStr);
+      final modifiedProducts = await _getCloudProduct(
+        datetime,
+        syncDatetimeStr,
+      );
+      final placeholders = List.filled(newProducts.length, '?').join(', ');
+      // Check does there is id/name with the same name with the new product form cloud
+      // Name Conflict, Strategy=>change the local to 'local_{name}'
+      if (newProducts.isNotEmpty) {
+        final namesToInclude = newProducts.map((p) => p.name).toList();
+        print("names: $namesToInclude");
+        final nameConflictIds = await LocalDBHandler.runRawSelectQuery("""
+            SELECT id FROM ${Product.tableName} 
+            WHERE name IN ($placeholders)
+          """, namesToInclude);
+        if (nameConflictIds == null) return false;
+        for (final id in nameConflictIds) {
+          batch.rawUpdate(
+            """
+              UPDATE ${Product.tableName}
+              SET name = 'local_'||name
+              WHERE id=?
+            """,
+            [id],
           );
-          // final excludedIds = [for (final product in newProducts) product.id];
-          final modifiedProducts = await _getCloudProduct(
-            datetime,
-            syncDatetimeStr,
-            // excludedIds,
-          );
-          final placeholders = List.filled(newProducts.length, '?').join(', ');
-          // Check does there is id/name with the same name with the new product form cloud
-          // Name Conflict, Strategy=>change the local to 'local_{name}'
-          if (newProducts.isNotEmpty) {
-            final namesToInclude = newProducts.map((p) => p.name).toList();
-            print("names: $namesToInclude");
-            final nameConflictIds = await LocalDBHandler.runRawSelectQuery("""
-                SELECT id FROM ${Product.tableName} 
-                WHERE name IN ($placeholders)
-              """, namesToInclude);
-            if (nameConflictIds == null) return false;
-            for (final id in nameConflictIds) {
-              batch.rawUpdate(
-                """
-                  UPDATE ${Product.tableName}
-                  SET name = 'local_'||name
-                  WHERE id=?
-                """,
-                [id],
-              );
-            }
-          }
-          // Then resolve conflicted ID
-          // Strategy=>Upsert, insert if not exist, update if exist.
-          // Drawback can alter the product data
-
-          // Continue, download all imageThat didn't exist in local.
-          // This will result in commit track download image
-          // that will searching the image on Cloudinary server
-          for (final product in newProducts + modifiedProducts) {
-            String? imgPath = product.imagePath;
-            if (imgPath != null) {
-              print("Data: imgPath: $imgPath");
-              // Download asset if not exist
-              // Add Download Task/Commit
-              if (!await FileHandler.fileExistFullPath(imgPath)) {
-                print("Product didn't exist");
-                CommitTrack.upsert(
-                  Product.tableName,
-                  product.id,
-                  CommitType.downloadImage,
-                  data: imgPath.split('/').last,
-                );
-                // We've track that image Path need to be downloaded
-                // So make it null to avoid error
-                imgPath = null;
-              } else {
-                print("Product exist");
-              }
-            }
-            // print("new Product: $product");
-            Product.upsert(batch, product, imgPath);
-          }
-          modifiedProductByCloudIds = [];
-          // Save modified cloud data
-          for (final modifiedProduct in modifiedProducts) {
-            await modifiedProduct.saveToDb(batch: batch);
-            modifiedProductByCloudIds.add(modifiedProduct.id);
-          }
-
-          // // Then resolve conflicted ID
-          // // Strategy=>move to the last
-          // // Better strategy but complex implementation. Alter ID meaning alter its foreign key
-        }
-        if (map['table_name'] == Transaction.tableName) {
-          final newTransactions = await _getNewCloudTransaction(datetime);
-          final excludedIds = [
-            for (final transaction in newTransactions) transaction.id,
-          ];
-          print("Excluded id: $excludedIds");
-          final modifiedTransaction = await _getCloudTransaction(
-            datetime,
-            excludedIds,
-          );
-          // For transaction the only problem is conflicted ID
-          // Resolve with Upsert strategy
-          for (final transaction in newTransactions) {
-            if (transaction.isDeleted) continue;
-            Transaction.upsert(batch, transaction);
-          }
-
-          // Then we also need to insert any transaction detail of its related transaction
-          final tdData = await _getNewCloudTransactionDetails(excludedIds);
-          await _saveCloudTransactionDetails(batch, tdData);
-          modifiedTransactionByCloudIds = [];
-          // Applay Modification
-          for (final transaction in modifiedTransaction) {
-            if (transaction.isDeleted) {
-              if (!await transaction.destroy()) {
-                print("Error in pull delete local transaction from cloud");
-              }
-            } else {
-              // Should not be come to here
-              print("saved pulled transaction");
-              await transaction.saveToDB(batch: batch);
-            }
-            modifiedTransactionByCloudIds.add(transaction.id);
-          }
         }
       }
+      // Then resolve conflicted ID
+      // Strategy=>Upsert, insert if not exist, update if exist.
+      // Drawback can alter the product data
+
+      // Continue, download all imageThat didn't exist in local.
+      // This will result in commit track download image
+      // that will searching the image on Cloudinary server
+      for (final product in newProducts + modifiedProducts) {
+        String? imgPath = product.imagePath;
+        if (imgPath != null) {
+          print("Data: imgPath: $imgPath");
+          // Download asset if not exist
+          // Add Download Task/Commit
+          if (!await FileHandler.fileExistFullPath(imgPath)) {
+            print("Product didn't exist");
+            CommitTrack.upsert(
+              Product.tableName,
+              product.id,
+              CommitType.downloadImage,
+              data: imgPath.split('/').last,
+            );
+            // We've track that image Path need to be downloaded
+            // So make it null to avoid error
+            imgPath = null;
+          } else {
+            print("Product exist");
+          }
+        }
+        // print("new Product: $product");
+        Product.upsert(batch, product, imgPath);
+      }
+      modifiedProductByCloudIds = [];
+      // Save modified cloud data
+      for (final modifiedProduct in modifiedProducts) {
+        // await modifiedProduct.saveToDb(batch: batch);
+        modifiedProductByCloudIds.add(modifiedProduct.id);
+      }
       await batch.commit(noResult: true);
-      writeString(syncDatetimeStr);
-      print("Pull Sync success");
-      // } catch (err) {
-      //   print('error in sync: $err');
-      //   return false;
-      // }
+      _setLastPullProduct(serverDateTime);
+    }
+
+    // Pull Sync Transaction
+    final datetimeTime2 = await _getLastPullTransaction();
+    if (datetimeTime2 == null) {
+      print("Gagal mendapatkan last pull transaction");
+      return false;
+    }
+    final datetimeT = datetimeTime2.toIso8601String();
+    final syncTablesT = await SyncEngine._needToSynTransaction(
+      lastSync: datetimeT,
+    );
+    List<int>? modifiedTransactionByCloudIds;
+    if (syncTablesT.isNotEmpty) {
+      // Need to pull
+      print("Pulling |Sync|");
+      final serverDateTime = await _getServerTimestamp();
+      if (serverDateTime == null) {
+        print("Error on getting server timestamp");
+        return false;
+      }
+      // Batch commit
+      final Batch? batch = LocalDBHandler.getBatch();
+      if (batch == null) return false;
+      // try {
+      // Map<String, Object> pulledDta = {};
+      final newTransactions = await _getNewCloudTransaction(datetimeT);
+      final excludedIds = [
+        for (final transaction in newTransactions) transaction.id,
+      ];
+      print("Excluded id: $excludedIds");
+      final modifiedTransaction = await _getCloudTransaction(
+        datetimeT,
+        serverDateTime.toIso8601String(),
+        excludedIds,
+      );
+      // For transaction the only problem is conflicted ID
+      // Resolve with Upsert strategy
+      for (final transaction in newTransactions) {
+        if (transaction.isDeleted) continue;
+        Transaction.upsert(batch, transaction);
+      }
+
+      // Then we also need to insert any transaction detail of its related transaction
+      final tdData = await _getNewCloudTransactionDetails(excludedIds);
+      await _saveCloudTransactionDetails(batch, tdData);
+      modifiedTransactionByCloudIds = [];
+      // Applay Modification
+      for (final transaction in modifiedTransaction) {
+        if (transaction.isDeleted) {
+          if (!await transaction.destroy()) {
+            print("Error in pull delete local transaction from cloud");
+          }
+        } else {
+          // Should not be come to here
+          print("saved pulled transaction");
+          await transaction.saveToDB(batch: batch);
+        }
+        modifiedTransactionByCloudIds.add(transaction.id);
+      }
+      await batch.commit(noResult: true);
+      _setLastPullTransaction(serverDateTime);
+      print("Pull Sync Transaction success");
     }
     print("Start Push |Sync|");
     // Push Diff CHANGE
-    // CloudTableChanged?
-    // isCloudProductChange = false;
-    // isCloudTransactionChange = false;
     // try {
     // Batch commit
     final Batch? batch = LocalDBHandler.getBatch();
@@ -1917,12 +1875,15 @@ class SyncEngine {
       // Push Diff delete and update
       // Handle downloadImage and uploadImage
       print("Product Commit datas: $productCommitDatas");
-      const nonDependentCommit = [CommitType.downloadImage, CommitType.uploadImage];
+      const nonDependentCommit = [
+        CommitType.downloadImage,
+        CommitType.uploadImage,
+      ];
       await _processProductDiff(
         batch,
         productCommitDatas,
         modifiedProductByCloudIds,
-        nonDependentCommit
+        nonDependentCommit,
       );
       // isCloudProductChange = true;
       // Handle stockUpdate
@@ -1956,27 +1917,8 @@ class SyncEngine {
     //   print("Error on push diff: $err");
     //   return false;
     // }
-    // Update time if any changed changed
-    // if (isCloudProductChange) _updateChangedTimeCloud(Product.tableName);
-    // if (isCloudTransactionChange) {
-    //   _updateChangedTimeCloud(Transaction.tableName);
-    // }
-
     return true;
   }
-
-  // static Future<bool> _updateChangedTimeCloud(String tableName) async {
-  //   try {
-  //     await supabase
-  //         .from("last_edited_tables")
-  //         .update({})
-  //         .eq("table_name", tableName);
-  //     return true;
-  //   } catch (err) {
-  //     print("Error on updating last updated table");
-  //     return false;
-  //   }
-  // }
 
   static Future<DateTime?> _getServerTimestamp() async {
     try {
@@ -2044,12 +1986,14 @@ class SyncEngine {
   /// Get the transaction data that are updated or newly created in cloud
   static Future<List<Transaction>> _getCloudTransaction(
     String datetime,
+    String serverTime,
     List<int> excludedId,
   ) async {
     final res = await supabase
         .from(Transaction.tableName)
         .select('id, datetime, is_deleted')
         .gt('updated_at', datetime)
+        .lte('updated_at', serverTime)
         .not('id', 'in', excludedId);
     print("Updated Transaction: $res");
     return [for (final map in res) Transaction.createFromMap(map)];
@@ -2214,7 +2158,7 @@ class SyncEngine {
     );
     batch.rawUpdate(
       """
-      UPDATE ${SyncEngine.commitTableName}
+      UPDATE ${SyncEngine._commitTableName}
       SET record_id=?
       WHERE record_id=?;
     """,
@@ -2242,7 +2186,7 @@ class SyncEngine {
 
     batch.rawUpdate(
       """
-      UPDATE ${SyncEngine.commitTableName}
+      UPDATE ${SyncEngine._commitTableName}
       SET record_id=?
       WHERE record_id=?;
     """,
@@ -2255,10 +2199,12 @@ class SyncEngine {
     Batch batch,
     List<CommitTrack> datas,
     List<int>? modifiedIds,
-    List<CommitType> nonDependentCommit
+    List<CommitType> nonDependentCommit,
   ) async {
     for (final commitTrack in datas) {
-      if (modifiedIds != null && modifiedIds.contains(commitTrack.recordId) && !nonDependentCommit.contains(commitTrack.commitType)) {
+      if (modifiedIds != null &&
+          modifiedIds.contains(commitTrack.recordId) &&
+          !nonDependentCommit.contains(commitTrack.commitType)) {
         if (!await commitTrack.destroy()) {
           print("Error on destroy commit track diff product");
         }
@@ -2438,7 +2384,8 @@ class SyncEngine {
     return res;
   }
 
-  static Future<void> test() async {
+  static Future<void> runSync() async {
+    if (SyncEngine.isSyncing) return;
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
       [ManagementPlugin.managementName],
@@ -2449,9 +2396,13 @@ class SyncEngine {
     } else {
       return;
     }
-    // if (await ManageUtils.getCloudSyncPw() == null) return;
-    print("Latest Datetime: ${await SyncEngine.readLastSyncStr()}");
+    SyncEngine.isSyncing = true;
     await doSync();
+    SyncEngine.isSyncing = false;
+  }
+
+  static Future<void> test() async {
+    await runSync();
   }
 }
 

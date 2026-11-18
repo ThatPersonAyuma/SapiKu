@@ -1,4 +1,3 @@
-import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
