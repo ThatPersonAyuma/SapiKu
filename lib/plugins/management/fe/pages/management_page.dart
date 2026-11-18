@@ -134,10 +134,8 @@ class _ManagementPageState extends State<ManagementPage> {
   Widget _buildProductCard(Product p) {
     return GestureDetector(
       onTap: () async {
-        final result = await Navigator.pushNamed(context, '/management/product/detail', arguments: {'product': p});
-        if (result == true) {
-          await _load();
-        }
+        await Navigator.pushNamed(context, '/management/product/detail', arguments: {'product': p});
+        await _load();
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),

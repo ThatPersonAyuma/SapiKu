@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:sapiku/core/fe/theme/app_colors.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
@@ -158,260 +159,271 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     final nameCtrl = TextEditingController(text: _product.name);
     final priceCtrl = TextEditingController(text: _product.price.toString());
     final stockCtrl = TextEditingController(text: _product.stock.toString());
+    XFile? _newImage;
+    String? _previewImagePath;
 
     showDialog(
       context: context,
       barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.greenBorder, width: 2),
-              ),
-              padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Edit Produk',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.greenBorder, width: 2),
+                ),
+                padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Edit Produk',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Nama Produk',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Gambar Produk',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                        hintText: 'Nama produk',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.4,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.8,
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Harga',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: priceCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Harga',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.4,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.8,
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Stok',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: stockCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Stok',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.4,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.8,
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.greenBorder,
-                            width: 1.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final name = nameCtrl.text.trim();
-                          final price = double.tryParse(priceCtrl.text);
-                          final stock = int.tryParse(stockCtrl.text);
-
-                          if (name.isEmpty || price == null || stock == null) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Semua field harus diisi dengan benar',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
-                          try {
-                            _product.name = name;
-                            _product.price = price;
-                            // Edited by Backend
-                            // Use update stock instead so it will be tracket by commit
-                            final otherChanged = _product.name == name || _product.price == price;
-                            if (_product.stock != stock) {
-                              await _product.updateStock(newStock: stock, saveAll: otherChanged);
-                            } else {
-                              await _product.saveToDb();
-                            }
-
-                            if (!ctx.mounted) return;
-                            Navigator.pop(ctx);
-
-                            setState(() {});
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Produk berhasil diperbarui'),
-                              ),
-                            );
-                          } catch (e) {
-                            if (!ctx.mounted) return;
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('Error: $e')),
-                            );
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final picked = await picker.pickImage(source: ImageSource.gallery);
+                          if (picked != null) {
+                            setDlg(() {
+                              _newImage = picked;
+                              _previewImagePath = picked.path;
+                            });
                           }
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.darkCard,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 28,
-                            vertical: 12,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            border: Border.all(color: AppColors.greenBorder, width: 2),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                          child: (_previewImagePath != null)
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.file(
+                                    File(_previewImagePath!),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                )
+                              : (_product.imagePath != null && File(_product.imagePath!).existsSync())
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.file(
+                                        File(_product.imagePath!),
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                      ),
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.add_photo_alternate_rounded, size: 40, color: Colors.grey.shade500),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Tambah Gambar',
+                                          style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final picker = ImagePicker();
+                            final picked = await picker.pickImage(source: ImageSource.gallery);
+                            if (picked != null) {
+                              setDlg(() {
+                                _newImage = picked;
+                                _previewImagePath = picked.path;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.greenBorder,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                           ),
-                          textStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                          icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                          label: const Text('Ubah Gambar'),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Nama Produk',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: nameCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Nama produk',
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
                           ),
                         ),
-                        child: const Text('Simpan'),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              top: -14,
-              right: -14,
-              child: InkWell(
-                onTap: () => Navigator.pop(ctx),
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.darkCard,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Harga',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: priceCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: 'Harga',
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Stok',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: stockCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: 'Stok',
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.8),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.greenBorder, width: 1.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final name = nameCtrl.text.trim();
+                            final price = double.tryParse(priceCtrl.text);
+                            final stock = int.tryParse(stockCtrl.text);
+
+                            if (name.isEmpty || price == null || stock == null) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(content: Text('Semua field harus diisi dengan benar')),
+                              );
+                              return;
+                            }
+
+                            try {
+                              _product.name = name;
+                              _product.price = price;
+                              _product.stock = stock;
+
+                              if (_newImage != null) {
+                                await _product.changeProductImage(_newImage!);
+                              } else {
+                                await _product.saveToDb();
+                              }
+
+                              if (!ctx.mounted) return;
+                              Navigator.pop(ctx);
+
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Produk berhasil diperbarui')),
+                              );
+                            } catch (e) {
+                              if (!ctx.mounted) return;
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.darkCard,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                          child: const Text('Simpan'),
+                        ),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    size: 20,
-                    color: Colors.white,
+                ),
+              ),
+              Positioned(
+                top: -14,
+                right: -14,
+                child: InkWell(
+                  onTap: () => Navigator.pop(ctx),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.darkCard,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))],
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 20, color: Colors.white),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
