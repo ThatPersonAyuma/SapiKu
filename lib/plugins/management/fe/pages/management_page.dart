@@ -121,9 +121,6 @@ class _ManagementPageState extends State<ManagementPage> {
                  await _scrollToProduct(result.id);
                }
              },
-              onLaporan: () {
-                Navigator.pushNamed(context, '/management/laporan');
-              },
            ),
         ],
       ),
