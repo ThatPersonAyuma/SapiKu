@@ -16,6 +16,20 @@ class ManagementMenuPage extends StatefulWidget {
 
 class _ManagementMenuPageState extends State<ManagementMenuPage> {
   bool _syncing = false;
+  bool _hasPendingSync = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPendingSync();
+  }
+
+  Future<void> _checkPendingSync() async {
+    final pending = await SyncEngine.hasPendingChanges();
+    if (mounted) {
+      setState(() => _hasPendingSync = pending);
+    }
+  }
 
   void _showSyncPasswordDialog() {
     final passwordCtrl = TextEditingController();
@@ -95,15 +109,23 @@ class _ManagementMenuPageState extends State<ManagementMenuPage> {
                         try {
                           await ManageUtils.setCloudSyncPw(password);
                           final loginSuccess = await ManageUtils.login();
-                          
+                          final syncSuccess = loginSuccess
+                              ? await SyncEngine.runSync()
+                              : false;
+                          await _checkPendingSync();
+
                           if (mounted) {
-                            if (loginSuccess) {
+                            if (!loginSuccess) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Password salah atau gagal sinkronkan')),
+                              );
+                            } else if (syncSuccess && !_hasPendingSync) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Data berhasil disinkronkan ke cloud')),
                               );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Password salah atau gagal sinkronkan')),
+                                const SnackBar(content: Text('Sinkronisasi gagal atau sebagian data belum tersinkronisasi')),
                               );
                             }
                           }
@@ -115,7 +137,10 @@ class _ManagementMenuPageState extends State<ManagementMenuPage> {
                           }
                         } finally {
                           if (mounted) {
-                            setState(() => _syncing = false);
+                            await _checkPendingSync();
+                            if (mounted) {
+                              setState(() => _syncing = false);
+                            }
                           }
                         }
                       },
@@ -138,6 +163,55 @@ class _ManagementMenuPageState extends State<ManagementMenuPage> {
     );
   }
 
+  Widget _buildPendingSyncCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.brown, width: 1.5),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.brown,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Data Pencatatan Belum Tersinkronisasi ke Internet',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Lakukan sinkronisasi dengan menekan tombol sinkronisasi di pojok kanan bawah dan masukkan password',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,12 +221,20 @@ class _ManagementMenuPageState extends State<ManagementMenuPage> {
         child: ListView(
           padding: const EdgeInsets.only(left: 14, right: 14, top: 140),
           children: [
+            if (_hasPendingSync) ...[
+              _buildPendingSyncCard(),
+              const SizedBox(height: 12),
+            ],
             PluginCard(
               title: 'Pencatatan Produk',
               subtitle: 'Kelola pencatatan produk',
               route: '/management/pencatatan',
               icon: CustomIcons.fluent_notebook_32_filled,
               subIcon: CustomIcons.game_icons_notebook,
+              onTap: (context, route) async {
+                await Navigator.pushNamed(context, route);
+                await _checkPendingSync();
+              },
             ),
             const SizedBox(height: 8),
             PluginCard(
@@ -161,6 +243,10 @@ class _ManagementMenuPageState extends State<ManagementMenuPage> {
               route: '/management/penjualan',
               icon: CustomIcons.fluent_building_retail_more_32_filled,
               subIcon: CustomIcons.fa7_solid_cash_register,
+              onTap: (context, route) async {
+                await Navigator.pushNamed(context, route);
+                await _checkPendingSync();
+              },
             ),
           ],
         ),
