@@ -9,7 +9,6 @@ import 'package:sapiku/plugins/management/fe/pages/management_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/penjualan_detail_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/penjualan_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/laporan_penjualan_page.dart';
-import 'package:sapiku/plugins/management/fe/pages/laporan_pencatatan_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/add_product_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/product_detail_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/penjualan_tambah_page.dart';
@@ -24,7 +23,6 @@ class AppRouter {
   static const String detectionHistory = '/detection/history';
   static const String management = '/management';
   static const String managementPencatatan = '/management/pencatatan';
-  static const String managementLaporan = '/management/laporan';
   static const String managementPenjualan = '/management/penjualan';
   static const String managementPenjualanDetail = '/management/penjualan/detail';
   static const String managementPenjualanTambah = '/management/penjualan/tambah';
@@ -50,8 +48,6 @@ class AppRouter {
         return _slide(const ManagementMenuPage(), s);
       case managementPencatatan:
         return _slide(const ManagementPage(), s);
-      case managementLaporan:
-        return _slide(const LaporanPencatatanPage(), s);
       case managementPenjualan:
         return _slide(const PenjualanPage(), s);
       case managementPenjualanDetail:

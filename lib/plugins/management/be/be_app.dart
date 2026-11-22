@@ -1663,13 +1663,31 @@ class SyncEngine {
     }
   }
 
-  static Future<bool> _isNeedPushTables() async {
-    final res = await LocalDBHandler.runRawSelectQuery("""
-      SELECT 1 FROM ${SyncEngine._commitTableName} LIMIT 1;
-    """);
+  /// Check if there is local data waiting to be synchronized to the cloud.
+  /// Image transfer commits are ignored because product/transaction data can
+  /// already be synchronized even when an image upload/download is still pending.
+  static Future<bool> hasPendingChanges() async {
+    const pendingTypes = [
+      CommitType.create,
+      CommitType.update,
+      CommitType.stockUpdate,
+      CommitType.delete,
+      CommitType.transactionDetailsPush,
+    ];
+    final placeholders = List.filled(pendingTypes.length, '?').join(', ');
+    final res = await LocalDBHandler.runRawSelectQuery(
+      """
+      SELECT 1 FROM ${SyncEngine._commitTableName}
+      WHERE type IN ($placeholders)
+      LIMIT 1;
+    """,
+      [for (final type in pendingTypes) type.index],
+    );
 
     return res != null && res.isNotEmpty;
   }
+
+  static Future<bool> _isNeedPushTables() => hasPendingChanges();
 
   static Future<List<CommitTrack>?> _getNewlyAddedProduct() async {
     final res = await LocalDBHandler.runRawSelectQuery(
@@ -2542,21 +2560,27 @@ class SyncEngine {
     return res;
   }
 
-  static Future<void> runSync() async {
-    if (SyncEngine.isSyncing) return;
+  static Future<bool> runSync() async {
+    if (SyncEngine.isSyncing) return false;
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
       [ManagementPlugin.managementName],
     );
-    if (res == null) return;
+    if (res == null) return false;
     if (res.isNotEmpty) {
-      if (res[0]['is_setup'] != 1) return;
+      if (res[0]['is_setup'] != 1) return false;
     } else {
-      return;
+      return false;
     }
     SyncEngine.isSyncing = true;
-    await doSync();
-    SyncEngine.isSyncing = false;
+    try {
+      return await doSync();
+    } catch (err) {
+      print("Sync error: $err");
+      return false;
+    } finally {
+      SyncEngine.isSyncing = false;
+    }
   }
 
   static Future<void> test() async {

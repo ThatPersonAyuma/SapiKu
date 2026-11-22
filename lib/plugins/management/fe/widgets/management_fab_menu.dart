@@ -5,14 +5,12 @@ class ManagementFabMenu extends StatefulWidget {
   final VoidCallback? onScan;
   final VoidCallback? onUpdateStock;
   final VoidCallback? onTambah;
-  final VoidCallback? onLaporan;
 
   const ManagementFabMenu({
     super.key, 
     this.onScan, 
     this.onUpdateStock, 
-    this.onTambah, 
-    this.onLaporan
+    this.onTambah
   });
 
   @override
@@ -102,16 +100,6 @@ class _ManagementFabMenuState extends State<ManagementFabMenu> with SingleTicker
                 onTap: () {
                   _close();
                   widget.onTambah?.call();
-                },
-              ),
-              const SizedBox(height: 10),
-              _buildAction(
-                label: 'Laporan Pencatatan',
-                icon: Icons.receipt_long_rounded,
-                index: 0,
-                onTap: () {
-                  _close();
-                  widget.onLaporan?.call();
                 },
               ),
               const SizedBox(height: 12),
