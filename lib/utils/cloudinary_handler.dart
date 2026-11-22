@@ -15,11 +15,11 @@ class CloudinaryHandler {
     try {
       final response = await http.get(
         Uri.parse(
-          "https://res.cloudinary.com/tdjglugb/image/upload/v1794695519/sapiku/management/$filename",
+          "https://res.cloudinary.com/$cloudName/image/upload/v1794695519/sapiku/management/$filename",
         ),
       );
       print(
-        "url: https://res.cloudinary.com/tdjglugb/image/upload/v1794695519/sapiku/management/$filename",
+        "url: https://res.cloudinary.com/$cloudName/image/upload/v1794695519/sapiku/management/$filename",
       );
       if (response.statusCode == 200) {
         final directory = await getApplicationDocumentsDirectory();
@@ -45,7 +45,7 @@ class CloudinaryHandler {
     try {
       final response = await http.get(
         Uri.parse(
-          "https://res.cloudinary.com/tdjglugb/image/upload/v1794695519/sapiku/management/$filename",
+          "https://res.cloudinary.com/$cloudName/image/upload/v1794695519/sapiku/management/$filename",
         ),
       );
 
@@ -128,7 +128,7 @@ class CloudinaryHandler {
     // Cloudinary otomatis meresolusi format jika ekstensi tidak ditulis,
     // atau tambahkan ekstensi spesifik seperti .jpg / .png jika formatnya pasti.
     final url =
-        'https://res.cloudinary.com/$cloudName/$resourceType/upload/$publicId';
+        'https://res.cloudinary.com/$cloudName/$resourceType/upload/v1794695519/sapiku/management/$publicId';
 
     try {
       final response = await http.head(Uri.parse(url));

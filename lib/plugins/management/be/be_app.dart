@@ -840,16 +840,14 @@ class Transaction {
           """
       SELECT 
         t.id AS id,
+        td.product_id AS product_id,
         t.datetime AS datetime, 
-        SUM(td.quantity * COALESCE(c.price, 0.0)) AS total_price
+        td.quantity AS quantity
       FROM $tableName t
       INNER JOIN ${TransactionDetail.tableName} td
         ON t.id = td.transaction_id
-      INNER JOIN ${Product.tableName} c
-        ON c.id = td.product_id
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
-      GROUP BY t.id, t.datetime
       ORDER BY datetime(t.datetime) ASC;
       """,
           [start.toIso8601String(), end.toIso8601String()],
@@ -868,17 +866,18 @@ class Transaction {
         await LocalDBHandler.runRawSelectQuery(
           """
       SELECT 
-        c.name AS product_name, 
-        SUM(td.quantity) AS total_selled
-      FROM $tableName t
+        c.id AS id,
+        c.name AS name, 
+        c.price AS price,
+        SUM(td.quantity) AS selled_quantity,
+        c.stock AS current_stock
+      FROM ${Product.tableName} c
       INNER JOIN ${TransactionDetail.tableName} td
-        ON t.id = td.transaction_id
-      INNER JOIN ${Product.tableName} c
         ON c.id = td.product_id
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
       GROUP BY c.id
-      ORDER BY datetime(t.datetime) DESC;
+      ORDER BY c.id;
       """,
           [start.toIso8601String(), end.toIso8601String()],
         );
@@ -933,15 +932,27 @@ class Transaction {
 /// We can only calculate selledQuantity because the product quantity itself is dynamic.
 /// And we dont store the quantity on that day.
 class ProductReport {
+  int id;
   String name;
+  double price;
   int selledQuantity;
+  int currentStock;
 
-  ProductReport(this.name, this.selledQuantity);
+  ProductReport(
+    this.id,
+    this.name,
+    this.price,
+    this.selledQuantity,
+    this.currentStock,
+  );
 
   static ProductReport createFromMap(Map<String, Object?> map) {
     return ProductReport(
-      map["product_name"] as String,
-      map["total_selled"] as int,
+      map['id'] as int,
+      map['name'] as String,
+      map['price'] as double,
+      map["selled_quantity"] as int,
+      map["current_stock"] as int,
     );
   }
 
@@ -954,15 +965,19 @@ class ProductReport {
 }
 
 class TransactionRecord {
+  int id;
+  int productId;
   DateTime date;
-  double totalPrice;
+  int quantity;
 
-  TransactionRecord(this.date, this.totalPrice);
+  TransactionRecord(this.id, this.productId, this.date, this.quantity);
 
   static TransactionRecord createFromMap(Map<String, Object?> map) {
     return TransactionRecord(
+      map['id'] as int,
+      map['product_id'] as int,
       strToDateTime((map["datetime"] as String)),
-      map["total_price"] as double,
+      map["quantity"] as int,
     );
   }
 
@@ -1059,26 +1074,117 @@ class ManageUtils {
     return success;
   }
 
+  static void _applyThinBorder(Range range) {
+    range.cellStyle.borders.all.lineStyle = LineStyle.thin;
+    range.cellStyle.borders.all.color = '#E5E7EB';
+  }
+
   /// Format the excel for transaction detail report
   static Future<bool> _createTransReportExcel(
     DateTime start,
     DateTime end,
     Worksheet sheet,
     List<TransactionRecord>? reportData,
+    Map<int, ProductReport> productData,
   ) async {
-    const List<String> columnNames = ["Waktu", "Total"];
+    const List<String> columnNames = [
+      "ID Transaksi",
+      "Tanggal",
+      "Nama Produk",
+      "Jumlah",
+      "Harga Satuan",
+      "Subtotal",
+    ];
     reportData ??= await createTransReport(start, end);
     if (reportData == null) return false;
 
-    sheet.getRangeByIndex(1, 1).setText(columnNames[0]);
-    sheet.getRangeByIndex(1, 2).setText(columnNames[1]);
-    int ri = 1;
-    for (final record in reportData) {
-      ++ri;
-      sheet.getRangeByIndex(ri, 1).setDateTime(record.date);
-      sheet.getRangeByIndex(ri, 2).setNumber(record.totalPrice);
+    final Range secATitle = sheet.getRangeByName('A3:F3');
+    secATitle.merge();
+    secATitle.setText('A. Riwayat Transaksi Penjualan');
+    secATitle.cellStyle.bold = true;
+    secATitle.cellStyle.fontSize = 12;
+    sheet.getRangeByIndex(3, 1).rowHeight = 22;
+
+    for (int i = 0; i < columnNames.length; i++) {
+      final Range cell = sheet.getRangeByIndex(4, i + 1);
+      cell.setText(columnNames[i]);
+      cell.cellStyle.bold = true;
+      cell.cellStyle.backColor = '#F3F4F6';
+      cell.cellStyle.vAlign = VAlignType.center;
+      cell.cellStyle.hAlign = i >= 3 ? HAlignType.right : HAlignType.left;
+      cell.columnWidth = 20;
+      _applyThinBorder(cell);
     }
+    sheet.getRangeByIndex(4, 1).rowHeight = 24;
+    int currentRow = 5;
+    for (var trx in reportData) {
+      sheet.getRangeByIndex(currentRow, 1).setText(trx.id.toString());
+      sheet.getRangeByIndex(currentRow, 2).setDateTime(trx.date);
+      String? pdName = productData[trx.id]?.name;
+      pdName ??= "Product tidak Ditemukan";
+      sheet.getRangeByIndex(currentRow, 3).setText(pdName);
+
+      // Jumlah (Format angka dengan satuan "botol")
+      final Range qtyCell = sheet.getRangeByIndex(currentRow, 4);
+      qtyCell.setNumber((trx.quantity).toDouble());
+      qtyCell.numberFormat = '0" botol"';
+      qtyCell.cellStyle.hAlign = HAlignType.right;
+
+      // Harga Satuan (Format Rupiah)
+      double? pdPrice = productData[trx.id]?.price;
+      pdPrice ??= 0;
+      final Range priceCell = sheet.getRangeByIndex(currentRow, 5);
+      priceCell.setNumber(pdPrice);
+      priceCell.numberFormat = '"Rp"#,##0';
+      priceCell.cellStyle.hAlign = HAlignType.right;
+
+      // Subtotal (Rumus: Jumlah * Harga Satuan)
+      final Range subCell = sheet.getRangeByIndex(currentRow, 6);
+      subCell.setFormula('=D$currentRow*E$currentRow');
+      subCell.numberFormat = '"Rp"#,##0';
+      subCell.cellStyle.hAlign = HAlignType.right;
+
+      // Terapkan border & tinggi baris
+      for (int col = 1; col <= 6; col++) {
+        final Range cell = sheet.getRangeByIndex(currentRow, col);
+        cell.cellStyle.vAlign = VAlignType.center;
+        _applyThinBorder(cell);
+      }
+      sheet.getRangeByIndex(currentRow, 1).rowHeight = 20;
+      currentRow++;
+    }
+
     return true;
+  }
+
+  static Map<int, List<TransactionRecord>> _groupTransaction(
+    List<TransactionRecord> data,
+  ) {
+    Map<int, List<TransactionRecord>> grouped = {};
+    for (final tr in data) {
+      final id = tr.id;
+
+      // Buat header transaksi jika t.id belum ada di dalam Map
+      grouped.putIfAbsent(id, () => [tr]);
+
+      // Tambahkan sisa kolom ke dalam list 'data'
+      (grouped[id]!).add(tr);
+    }
+    return grouped;
+  }
+
+  static Map<int, ProductReport> _createMapProductReport(
+    List<ProductReport> data,
+  ) {
+    Map<int, ProductReport> grouped = {};
+    for (final pr in data) {
+      final id = pr.id;
+
+      // Buat header transaksi jika t.id belum ada di dalam Map
+      grouped.putIfAbsent(id, () => pr);
+
+    }
+    return grouped;
   }
 
   /// Format the excel sheet for product statistic reports
@@ -1086,19 +1192,53 @@ class ManageUtils {
     DateTime start,
     DateTime end,
     Worksheet sheet,
-    List<ProductReport>? reportData,
+    List<ProductReport> reportData,
   ) async {
-    const List<String> columnNames = ["Nama Produk", "Total Terjual"];
-    reportData ??= await createProdReport(start, end);
-    if (reportData == null) return false;
+    const List<String> columnNames = [
+      "Nama Produk",
+      "Total Terjual",
+      "Stock Saat Ini",
+    ];
+    for (int i = 0; i < columnNames.length; i++) {
+      final Range cell = sheet.getRangeByIndex(4, i + 8);
+      cell.setText(columnNames[i]);
+      cell.cellStyle.bold = true;
+      cell.cellStyle.backColor = '#F3F4F6';
+      cell.cellStyle.hAlign = HAlignType.right;
+      cell.cellStyle.vAlign = VAlignType.center;
+      cell.columnWidth = 20;
+      _applyThinBorder(cell);
+    }
+    sheet.getRangeByIndex(4, 1).rowHeight = 24;
 
-    sheet.getRangeByIndex(1, 4).setText(columnNames[0]);
-    sheet.getRangeByIndex(1, 5).setText(columnNames[1]);
-    int ri = 1;
-    for (final record in reportData) {
-      ++ri;
-      sheet.getRangeByIndex(ri, 4).setText(record.name);
-      sheet.getRangeByIndex(ri, 5).setNumber(record.selledQuantity.toDouble());
+    int currentRow = 5;
+    for (final product in reportData) {
+      final Range name = sheet.getRangeByIndex(currentRow, 8);
+      name.merge();
+      name.setText(product.name);
+      name.cellStyle.hAlign = HAlignType.left;
+      name.cellStyle.vAlign = VAlignType.center;
+      name.columnWidth = 24;
+      _applyThinBorder(name);
+
+      // Stok Terjual
+      final Range totalSold = sheet.getRangeByIndex(currentRow, 9);
+      totalSold.setNumber(product.selledQuantity.toDouble());
+      totalSold.numberFormat = '0" botol"';
+
+      // Stok Saat Ini
+      final Range masukCell = sheet.getRangeByIndex(currentRow, 10);
+      masukCell.setNumber(product.currentStock.toDouble());
+      masukCell.numberFormat = '0" botol"';
+
+      for (int col = 9; col <= 10; col++) {
+        final Range cell = sheet.getRangeByIndex(currentRow, col);
+        cell.cellStyle.hAlign = HAlignType.right;
+        cell.cellStyle.vAlign = VAlignType.center;
+        _applyThinBorder(cell);
+      }
+      sheet.getRangeByIndex(currentRow, 1).rowHeight = 20;
+      currentRow++;
     }
     return true;
   }
@@ -1138,11 +1278,29 @@ class ManageUtils {
     List<TransactionRecord>? reportData,
     List<ProductReport>? productData,
   }) async {
-    final filePath = '${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
+    final filePath = 'Laporan_Penjualan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
     final Workbook wb = Workbook();
     final Worksheet sheet = wb.worksheets[0];
-    await _createTransReportExcel(start, end, sheet, reportData);
+    sheet.name = 'Laporan SapiKu';
+    final Range titleRange = sheet.getRangeByName('A1:F1');
+    titleRange.merge();
+    titleRange.setText('Laporan Penjualan dan Stok SapiKu');
+    titleRange.cellStyle.bold = true;
+    titleRange.cellStyle.fontSize = 15;
+    titleRange.cellStyle.vAlign = VAlignType.center;
+    sheet.getRangeByIndex(1, 1).rowHeight = 28;
+    productData ??= await createProdReport(start, end);
+    if (productData == null) return false;
+    await _createTransReportExcel(
+      start,
+      end,
+      sheet,
+      reportData,
+      _createMapProductReport(productData),
+    );
+
     await _createProductReportExcel(start, end, sheet, productData);
+
     FileHandler.saveFileWithPicker(
       bytes: wb.saveAsStream(),
       fileName: filePath,
@@ -1151,41 +1309,41 @@ class ManageUtils {
     return true;
   }
 
-  static Future<bool> saveTransactionReport(
-    DateTime start,
-    DateTime end, {
-    List<TransactionRecord>? reportData,
-  }) async {
-    final filePath =
-        'Laporan_Penjualan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
-    final Workbook wb = Workbook();
-    final Worksheet sheet = wb.worksheets[0];
-    await _createTransReportExcel(start, end, sheet, reportData);
-    FileHandler.saveFileWithPicker(
-      bytes: wb.saveAsStream(),
-      fileName: filePath,
-    );
-    wb.dispose();
-    return true;
-  }
+  // static Future<bool> saveTransactionReport(
+  //   DateTime start,
+  //   DateTime end, {
+  //   List<TransactionRecord>? reportData,
+  // }) async {
+  //   final filePath =
+  //       'Laporan_Penjualan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
+  //   final Workbook wb = Workbook();
+  //   final Worksheet sheet = wb.worksheets[0];
+  //   await _createTransReportExcel(start, end, sheet, reportData);
+  //   FileHandler.saveFileWithPicker(
+  //     bytes: wb.saveAsStream(),
+  //     fileName: filePath,
+  //   );
+  //   wb.dispose();
+  //   return true;
+  // }
 
-  static Future<bool> saveProductReport(
-    DateTime start,
-    DateTime end, {
-    List<ProductReport>? reportData,
-  }) async {
-    final filePath =
-        'Laporan_Pencatatan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
-    final Workbook wb = Workbook();
-    final Worksheet sheet = wb.worksheets[0];
-    await _createProductReportExcel(start, end, sheet, reportData);
-    FileHandler.saveFileWithPicker(
-      bytes: wb.saveAsStream(),
-      fileName: filePath,
-    );
-    wb.dispose();
-    return true;
-  }
+  // static Future<bool> saveProductReport(
+  //   DateTime start,
+  //   DateTime end, {
+  //   List<ProductReport>? reportData,
+  // }) async {
+  //   final filePath =
+  //       'Laporan_Pencatatan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
+  //   final Workbook wb = Workbook();
+  //   final Worksheet sheet = wb.worksheets[0];
+  //   await _createProductReportExcel(start, end, sheet, reportData);
+  //   FileHandler.saveFileWithPicker(
+  //     bytes: wb.saveAsStream(),
+  //     fileName: filePath,
+  //   );
+  //   wb.dispose();
+  //   return true;
+  // }
 
   static Future<void> pushImageFile(int productId) async {}
 

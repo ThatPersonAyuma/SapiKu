@@ -13,7 +13,7 @@ import 'package:sqflite/sqflite.dart';
 class DetectionPlugin {
   // #region Constant Value
   static const detectionName = "detection";
-  static const modelAssetsId = "1Pxa6mnjzePYSq_Yrc9bcqc-mCOYeGx5M";
+  static const modelAssetsId = "1KhnaoCdFeBEXsrQoZOgenk8kedzLnNm2";
   static const modelFolderPrefix = "models";
 
   /// Filename of YOLO Model

@@ -73,11 +73,6 @@ class FileHandler {
     return filePath;
   }
 
-  static Future<String> getStoredPath(String prefix, String filename) async {
-    final directory = await getApplicationDocumentsDirectory();
-    return "$directory/$prefix/$filename";
-  }
-
   static Future<bool> saveFileWithPicker({
     required List<int> bytes,
     required String fileName,
