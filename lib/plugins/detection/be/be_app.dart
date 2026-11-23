@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:image_picker/image_picker.dart';
 import 'package:sapiku/plugins/detection/be/detection_pipeline.dart';
 import 'package:sapiku/utils/cloudinary_handler.dart';

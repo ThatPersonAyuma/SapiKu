@@ -802,12 +802,18 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
       //   );
       // }
       final transaction = await Transaction.create([
-        for (final item in _cartItems) TransactionDetailInsertComponent((item['product'] as Product).id, item['quantity'] as int)
+        for (final item in _cartItems)
+          TransactionDetailInsertComponent(
+            (item['product'] as Product).id,
+            item['quantity'] as int,
+          ),
       ]);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Transaksi #${transaction?.id} berhasil disimpan!')),
+          SnackBar(
+            content: Text('✅ Transaksi #${transaction?.id} berhasil disimpan!'),
+          ),
         );
         Navigator.pop(context);
       }
@@ -1072,6 +1078,40 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class TestSync extends StatelessWidget {
+  const TestSync({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Test Sync')),
+      body: Center(
+        child: Row(
+          children: [
+            ElevatedButton(
+              onPressed: () async {
+                await doSyncWork();
+              },
+              child: const Text('Mulai Sync'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => const TestSync(),
+                  ),
+                );
+              },
+              child: const Text('Tambag Halaman'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

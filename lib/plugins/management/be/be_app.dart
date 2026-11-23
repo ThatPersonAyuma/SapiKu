@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sapiku/plugins/management/fe/pages/notifier.dart';
 import 'package:sapiku/plugins/management/utils/qr.dart';
 import 'package:sapiku/utils/cloudinary_handler.dart';
 import 'package:sapiku/utils/db/cloud_handler.dart';
@@ -874,6 +875,8 @@ class Transaction {
       FROM ${Product.tableName} c
       INNER JOIN ${TransactionDetail.tableName} td
         ON c.id = td.product_id
+      INNER JOIN ${Transaction.tableName} t
+        ON t.id = td.transaction_id
       WHERE datetime(t.datetime) >= datetime(?) 
         AND datetime(t.datetime) <= datetime(?)
       GROUP BY c.id
@@ -1080,7 +1083,7 @@ class ManageUtils {
   }
 
   /// Format the excel for transaction detail report
-  static Future<bool> _createTransReportExcel(
+  static Future<(int, int)?> _createTransReportExcel(
     DateTime start,
     DateTime end,
     Worksheet sheet,
@@ -1096,7 +1099,7 @@ class ManageUtils {
       "Subtotal",
     ];
     reportData ??= await createTransReport(start, end);
-    if (reportData == null) return false;
+    if (reportData == null) return null;
 
     final Range secATitle = sheet.getRangeByName('A3:F3');
     secATitle.merge();
@@ -1117,6 +1120,7 @@ class ManageUtils {
     }
     sheet.getRangeByIndex(4, 1).rowHeight = 24;
     int currentRow = 5;
+    final startRow = currentRow;
     for (var trx in reportData) {
       sheet.getRangeByIndex(currentRow, 1).setText(trx.id.toString());
       sheet.getRangeByIndex(currentRow, 2).setDateTime(trx.date);
@@ -1154,7 +1158,54 @@ class ManageUtils {
       currentRow++;
     }
 
-    return true;
+    return (startRow, currentRow - 1);
+  }
+
+  static void _createTotalIncome(
+    Worksheet sheet,
+    int currentRow,
+    int startRow,
+    int endRow,
+  ) async {
+    final Range secCTitle = sheet.getRangeByName('H$currentRow:J$currentRow');
+    secCTitle.merge();
+    secCTitle.setText('Total Pendapatan');
+    secCTitle.cellStyle.bold = true;
+    secCTitle.cellStyle.fontSize = 12;
+    sheet.getRangeByIndex(currentRow, 1).rowHeight = 22;
+    currentRow++;
+    final Range boxLabel = sheet.getRangeByIndex(currentRow, 8, currentRow, 10);
+    boxLabel.merge();
+    boxLabel.setText('Total Pendapatan Selama Periode Laporan');
+    boxLabel.cellStyle.fontSize = 10;
+    boxLabel.cellStyle.fontColor = '#4B5563';
+    boxLabel.cellStyle.backColor = '#F9FAFB';
+    boxLabel.cellStyle.vAlign = VAlignType.bottom;
+    boxLabel.cellStyle.borders.top.lineStyle = LineStyle.thin;
+    boxLabel.cellStyle.borders.top.color = '#D1D5DB';
+    boxLabel.cellStyle.borders.left.lineStyle = LineStyle.thin;
+    boxLabel.cellStyle.borders.left.color = '#D1D5DB';
+    boxLabel.cellStyle.borders.right.lineStyle = LineStyle.thin;
+    boxLabel.cellStyle.borders.right.color = '#D1D5DB';
+
+    currentRow++;
+    final Range boxValue = sheet.getRangeByName('H$currentRow:J$currentRow');
+    boxValue.merge();
+    boxValue.setFormula('=SUM(F$startRow:F$endRow)');
+    boxValue.numberFormat = '"Rp"#,##0';
+    boxValue.cellStyle.bold = true;
+    boxValue.cellStyle.fontSize = 16;
+    boxValue.cellStyle.fontColor = '#16A34A'; // Hijau
+    boxValue.cellStyle.backColor = '#F9FAFB';
+    boxValue.cellStyle.hAlign = HAlignType.left;
+    boxValue.cellStyle.vAlign = VAlignType.center;
+    boxValue.cellStyle.borders.bottom.lineStyle = LineStyle.thin;
+    boxValue.cellStyle.borders.bottom.color = '#D1D5DB';
+    boxValue.cellStyle.borders.left.lineStyle = LineStyle.thin;
+    boxValue.cellStyle.borders.left.color = '#D1D5DB';
+    boxValue.cellStyle.borders.right.lineStyle = LineStyle.thin;
+    boxValue.cellStyle.borders.right.color = '#D1D5DB';
+    sheet.getRangeByIndex(currentRow, 1).rowHeight = 28;
   }
 
   static Map<int, List<TransactionRecord>> _groupTransaction(
@@ -1182,13 +1233,12 @@ class ManageUtils {
 
       // Buat header transaksi jika t.id belum ada di dalam Map
       grouped.putIfAbsent(id, () => pr);
-
     }
     return grouped;
   }
 
   /// Format the excel sheet for product statistic reports
-  static Future<bool> _createProductReportExcel(
+  static Future<int> _createProductReportExcel(
     DateTime start,
     DateTime end,
     Worksheet sheet,
@@ -1204,7 +1254,7 @@ class ManageUtils {
       cell.setText(columnNames[i]);
       cell.cellStyle.bold = true;
       cell.cellStyle.backColor = '#F3F4F6';
-      cell.cellStyle.hAlign = HAlignType.right;
+      cell.cellStyle.hAlign = HAlignType.left;
       cell.cellStyle.vAlign = VAlignType.center;
       cell.columnWidth = 20;
       _applyThinBorder(cell);
@@ -1212,6 +1262,7 @@ class ManageUtils {
     sheet.getRangeByIndex(4, 1).rowHeight = 24;
 
     int currentRow = 5;
+    final int startRow = currentRow;
     for (final product in reportData) {
       final Range name = sheet.getRangeByIndex(currentRow, 8);
       name.merge();
@@ -1240,7 +1291,28 @@ class ManageUtils {
       sheet.getRangeByIndex(currentRow, 1).rowHeight = 20;
       currentRow++;
     }
-    return true;
+    final int endRowB = currentRow - 1;
+    // Total
+    final Range totalLabel = sheet.getRangeByIndex(currentRow, 8);
+    totalLabel.merge();
+    totalLabel.setText('Total');
+    totalLabel.cellStyle.bold = true;
+    totalLabel.cellStyle.vAlign = VAlignType.center;
+    _applyThinBorder(totalLabel);
+    final List<String> colLetters = ['I', 'J'];
+    for (int i = 0; i < colLetters.length; i++) {
+      final String col = colLetters[i];
+      final Range totalCell = sheet.getRangeByIndex(currentRow, i + 9);
+      totalCell.setFormula('=SUM($col$startRow:$col$endRowB)');
+      totalCell.numberFormat = '#,##0';
+      totalCell.cellStyle.bold = true;
+      totalCell.cellStyle.hAlign = HAlignType.right;
+      totalCell.cellStyle.vAlign = VAlignType.center;
+      _applyThinBorder(totalCell);
+    }
+    sheet.getRangeByIndex(currentRow, 1).rowHeight = 22;
+    currentRow += 2;
+    return currentRow;
   }
 
   /// Get List of TransactionRecord to show the report of transaction/sell.
@@ -1254,6 +1326,49 @@ class ManageUtils {
     final res = await Transaction.getAllTransactionAndDetails(start, end);
     if (res == null) return null;
     return TransactionRecord.createFromListMap(res);
+  }
+
+  static Future<List<Map<String, Object?>>?> getTransactionReportShow(
+    DateTime start, // Add end
+    DateTime end,
+  ) async {
+    List<Map<String, Object?>>? dbDatas =
+        await LocalDBHandler.runRawSelectQuery(
+          """
+      SELECT 
+        t.datetime AS datetime, 
+        SUM(td.quantity * COALESCE(c.price, 0.0)) AS total_price
+      FROM ${Transaction.tableName} t
+      INNER JOIN ${TransactionDetail.tableName} td
+        ON t.id = td.transaction_id
+      INNER JOIN ${Product.tableName} c
+        ON c.id = td.product_id
+      WHERE datetime(t.datetime) >= datetime(?) 
+        AND datetime(t.datetime) <= datetime(?)
+      GROUP BY t.id
+      ORDER BY datetime(t.datetime) ASC;
+      """,
+          [start.toIso8601String(), end.toIso8601String()],
+        );
+    if (dbDatas == null) return null;
+    List<Map<String, Object?>> datas = [for (final d in dbDatas) Map.of(d)];
+    for (int i = 0; i < datas.length; ++i) {
+      datas[i]["datetime"] = strToDateTime((datas[i]["datetime"] as String));
+      if (datas[i]["total_price"] is int) {
+        datas[i]["total_price"] = (datas[i]["total_price"] as int).toDouble();
+      }
+    }
+    return datas;
+  }
+
+  static Future<Map<int, List<TransactionRecord>>?> createTransReportGrouped(
+    DateTime start, // Add end
+    DateTime end,
+    List<TransactionRecord>? data,
+  ) async {
+    data ??= await ManageUtils.createTransReport(start, end);
+    if (data == null) return null;
+    return _groupTransaction(data);
   }
 
   /// Get List of ProductReport to show the report of selled product stat.
@@ -1278,7 +1393,8 @@ class ManageUtils {
     List<TransactionRecord>? reportData,
     List<ProductReport>? productData,
   }) async {
-    final filePath = 'Laporan_Penjualan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
+    final filePath =
+        'Laporan_Penjualan_${start.toIso8601String()}-${end.toIso8601String()}.xlsx';
     final Workbook wb = Workbook();
     final Worksheet sheet = wb.worksheets[0];
     sheet.name = 'Laporan SapiKu';
@@ -1291,16 +1407,22 @@ class ManageUtils {
     sheet.getRangeByIndex(1, 1).rowHeight = 28;
     productData ??= await createProdReport(start, end);
     if (productData == null) return false;
-    await _createTransReportExcel(
+    final startEndRow = await _createTransReportExcel(
       start,
       end,
       sheet,
       reportData,
       _createMapProductReport(productData),
     );
+    if (startEndRow == null) return false;
 
-    await _createProductReportExcel(start, end, sheet, productData);
-
+    final currentRow = await _createProductReportExcel(
+      start,
+      end,
+      sheet,
+      productData,
+    );
+    _createTotalIncome(sheet, currentRow, startEndRow.$1, startEndRow.$2);
     FileHandler.saveFileWithPicker(
       bytes: wb.saveAsStream(),
       fileName: filePath,
@@ -1353,21 +1475,56 @@ class ManageUtils {
 @pragma('vm:entry-point')
 void syncCallback() {
   Workmanager().executeTask((task, inputData) async {
-    print("=== BACKGROUND SYNC STARTED ===");
-    try {
-      WidgetsFlutterBinding.ensureInitialized();
-      await CloudHandler.cloudSetup();
-      await LocalDBHandler.setup();
-      print("=== BACKGROUND SYNC SUCCESS ===");
-
-      // Pastikan SyncEngine.doSync mengembalikan boolean (true jika sukses, false jika gagal)
-      bool success = await SyncEngine.doSync();
-    } catch (err) {
-      print("=== BACKGROUND SYNC FAILED ===");
-      print("Dispatch Sync error: $err");
-    }
-    return true;
+    return doSyncWork();
   });
+}
+
+Future<bool> doSyncWork() async {
+  print("=== BACKGROUND SYNC STARTED ===");
+  final currentSyncSeq = TopSyncNotifier.showSyncing(
+    title: 'Menyinkronkan data...',
+    message: 'Memproses antrean perubahan lokal',
+  );
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    await CloudHandler.cloudSetup();
+    await LocalDBHandler.setup();
+    print("=== BACKGROUND SYNC SUCCESS ===");
+
+    // Pastikan SyncEngine.doSync mengembalikan boolean (true jika sukses, false jika gagal)
+    bool synced = await SyncEngine.runSync();
+    if (!synced) {
+      // 2a. Selesai dengan gagal -> ganti notifier & mulai timer dismiss baru
+      TopSyncNotifier.completeSync(
+        isSuccess: false,
+        title: 'Sinkronisasi Gagal',
+        message: 'Koneksi terputus atau konflik data. Ketuk untuk coba lagi.',
+        duration: const Duration(seconds: 5),
+        syncSequence: currentSyncSeq,
+      );
+      return true;
+    }
+
+    // 2b. Selesai dengan sukses -> ganti notifier & mulai timer dismiss baru
+    TopSyncNotifier.completeSync(
+      isSuccess: true,
+      title: 'Sinkronisasi Berhasil',
+      message: 'Semua data sudah selaras dengan server.',
+      duration: const Duration(seconds: 3),
+      syncSequence: currentSyncSeq,
+    );
+  } catch (err) {
+    TopSyncNotifier.completeSync(
+      isSuccess: false,
+      title: 'Terjadi Kesalahan',
+      message: err.toString(),
+      duration: const Duration(seconds: 5),
+      syncSequence: currentSyncSeq,
+    );
+    print("=== BACKGROUND SYNC FAILED ===");
+    print("Dispatch Sync error: $err");
+  }
+  return true;
 }
 
 enum CommitType {
@@ -1553,6 +1710,7 @@ class SyncEngine {
       CREATE TABLE IF NOT EXISTS $_lastSyncsTableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(255) NOT NULL,
+        time DATETIME NULL DEFAULT CURRENT_TIMESTAMP, 
         data TEXT NULL
       );
     """);
