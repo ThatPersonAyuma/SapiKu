@@ -29,7 +29,7 @@ class DetectionProvider extends ChangeNotifier {
 
   Future<DetectionHistory?> processImage(File file) async {
     loading = true; error = null; notifyListeners();
-    try {
+    // try {
       await init();
       final out = await pipeline.processImage(file);
       results = (out['results'] as List).cast<DetectionResult>();
@@ -48,11 +48,11 @@ class DetectionProvider extends ChangeNotifier {
       );
       history.insert(0, entry);
       return entry;
-    } catch (e) {
-      error = e.toString();
-      return null;
-    } finally {
-      loading = false; notifyListeners();
-    }
+    // } catch (e) {
+    //   error = e.toString();
+    //   return null;
+    // } finally {
+    //   loading = false; notifyListeners();
+    // }
   }
 }

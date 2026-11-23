@@ -74,7 +74,7 @@ class _PenjualanReportTab extends StatefulWidget {
 class _PenjualanReportTabState extends State<_PenjualanReportTab> {
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
-  List<TransactionRecord> _records = [];
+  List<Map<String, Object?>> _records = [];
   bool _loading = false;
   bool _downloading = false;
 
@@ -86,7 +86,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
 
   Future<void> _loadReport() async {
     setState(() => _loading = true);
-    final records = await ManageUtils.createTransReport(_startDate, _endDate);
+    final records = await ManageUtils.getTransactionReportShow(_startDate, _endDate);
     if (mounted) {
       setState(() {
         _records = records ?? [];
@@ -124,7 +124,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
   Future<void> _downloadReport() async {
     setState(() => _downloading = true);
     try {
-      final success = await ManageUtils.saveTransactionReport(_startDate, _endDate, reportData: _records);
+      final success = await ManageUtils.saveReport(_startDate, _endDate);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(success ? 'Laporan berhasil diunduh' : 'Gagal mengunduh laporan')),
@@ -247,7 +247,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Tanggal: ${record.date.day.toString().padLeft(2, '0')}/${record.date.month.toString().padLeft(2, '0')}/${record.date.year}',
+                              'Tanggal: ${(record["datetime"] as DateTime).day.toString().padLeft(2, '0')}/${(record["datetime"] as DateTime).month.toString().padLeft(2, '0')}/${(record["datetime"] as DateTime).year}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -256,7 +256,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Total: ${_rp(record.totalPrice.toInt())}',
+                              'Total: ${_rp((record["total_price"] as double).toInt())}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Colors.black54,
@@ -271,7 +271,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            _rp(record.totalPrice.toInt()),
+                            _rp((record["total_price"] as double).toInt()),
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -353,7 +353,7 @@ class _PencatatanReportTabState extends State<_PencatatanReportTab> {
     try {
       final now = DateTime.now();
       final startOfMonth = DateTime(now.year, now.month, 1);
-      final success = await ManageUtils.saveProductReport(startOfMonth, now, reportData: _reports);
+      final success = await ManageUtils.saveReport(startOfMonth, now, productData: _reports);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(success ? 'Laporan berhasil diunduh' : 'Gagal mengunduh laporan')),

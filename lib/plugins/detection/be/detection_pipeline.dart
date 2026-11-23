@@ -32,57 +32,74 @@ class ProfilingMetrics {
 
 enum DetectionCondition { success, noBoundingBox, noDetection }
 
+class _YoloCandidate {
+  final Rect box;
+  final double score;
+
+  const _YoloCandidate({required this.box, required this.score});
+}
+
 class CascadePipeline {
   IsolateInterpreter? _yoloIsolate;
   IsolateInterpreter? _mobileNetIsolate;
-  List<String> _labels = [];
+  List<String> _labels = <String>[];
+  static const int yoloInputSize = 320;
+  static const double roiPaddingRatio = 0.08; // margin 8% di sekitar bbox
 
   /// Used for thressholding YOLO bounding box
-  static const double yoloThreshold = 0.01;
+  static const double yoloThreshold = 0.001;
 
   /// Thresshold for classification.
   /// Used for identify if classification prediction is good enough
-  static const double classificThresshold = 0.60;
+  static const double classificThresshold = 0.80;
 
   /// PlaceHolder label for label that failed to be detected by MobileNetv3
   static const String failedClassific = "Gagal Mendeteksi";
 
   Future<void> initialize() async {
-    // final yoloInterp = await Interpreter.fromAsset('assets/models/yolov8n_f32.tflite');
-    final destinationDir = await getApplicationDocumentsDirectory();
-    final yoloInterp = Interpreter.fromFile(
-      File(
-        '${destinationDir.path}/${DetectionPlugin.detectionName}/${DetectionPlugin.modelFolderPrefix}/${DetectionPlugin.yoloFileName}',
-      ),
-    );
-    _yoloIsolate = await IsolateInterpreter.create(address: yoloInterp.address);
-
-    // final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3_lumpy_f32.tflite');
-    final mobileNetInterp = Interpreter.fromFile(
-      File(
-        '${destinationDir.path}/${DetectionPlugin.detectionName}/${DetectionPlugin.modelFolderPrefix}/${DetectionPlugin.mobNetFileName}',
-      ),
-    );
-    _mobileNetIsolate = await IsolateInterpreter.create(
-      address: mobileNetInterp.address,
-    );
-
-    _labels = ["healthy_cowhide", "lumpy", "mange", "pediculosis", "ringworm"];
-
-    final options = InterpreterOptions();
+    final InterpreterOptions options = InterpreterOptions();
     // Aktifkan GPU Delegate (Android/iOS)
     if (Platform.isAndroid) {
       options.addDelegate(GpuDelegateV2());
     } else if (Platform.isIOS) {
       options.addDelegate(GpuDelegate());
     }
+
+    // final yoloInterp = await Interpreter.fromAsset('assets/models/yolov8n_f32.tflite');
+    final Directory destinationDir = await getApplicationDocumentsDirectory();
+    final Interpreter yoloInterp = Interpreter.fromFile(
+      File(
+        '${destinationDir.path}/${DetectionPlugin.detectionName}/${DetectionPlugin.modelFolderPrefix}/${DetectionPlugin.yoloFileName}',
+      ),
+      options: options,
+    );
+    _yoloIsolate = await IsolateInterpreter.create(address: yoloInterp.address);
+
+    // final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3_lumpy_f32.tflite');
+    final Interpreter mobileNetInterp = Interpreter.fromFile(
+      File(
+        '${destinationDir.path}/${DetectionPlugin.detectionName}/${DetectionPlugin.modelFolderPrefix}/${DetectionPlugin.mobNetFileName}',
+      ),
+      options: options,
+    );
+    _mobileNetIsolate = await IsolateInterpreter.create(
+      address: mobileNetInterp.address,
+    );
+
+    _labels = <String>[
+      "healthy_cowhide",
+      "lumpy",
+      "mange",
+      "pediculosis",
+      "ringworm",
+    ];
   }
 
   /// Proces Image. Return map.
   /// Return empty if failed to get image or there is no bounding box detected by YOLO that satisfy the yoloThreeshold
   Future<Map<String, dynamic>> processImage(File imageFile) async {
-    final metrics = ProfilingMetrics();
-    final totalWatch = Stopwatch()..start();
+    final ProfilingMetrics metrics = ProfilingMetrics();
+    final Stopwatch totalWatch = Stopwatch()..start();
 
     // 1. Decode gambar
     final Uint8List bytes = await imageFile.readAsBytes();
@@ -92,59 +109,82 @@ class CascadePipeline {
         PopUpTitle.error,
         "Gagal pada saat memproses gambar.",
       );
-      return {
+      return <String, dynamic>{
         'results': <DetectionResult>[],
         'metrics': metrics,
         'imageWidth': 0,
         'imageHeight': 0,
       };
     }
-    // 2. Preprocess YOLOv8 (640x640)
-    final yoloInputImg = img.copyResize(originalImg, width: 640, height: 640);
-    final yoloInputBuffer = _imageToFloat32Buffer(yoloInputImg, 640, 640);
 
-    // 3. Inference YOLOv8n (Shape [1, 9, 8400])
-    final yoloWatch = Stopwatch()..start();
-    var yoloOutput = List.filled(1 * 9 * 8400, 0.0).reshape([1, 9, 8400]);
+    // 2. Preprocess YOLOv8 (320x320, normalisasi / 255.0)
+    final img.Image yoloInputImg = img.copyResize(
+      originalImg,
+      width: yoloInputSize,
+      height: yoloInputSize,
+    );
+    final Float32List yoloInputBuffer = _imageToFloat32Buffer(
+      yoloInputImg,
+      yoloInputSize,
+      yoloInputSize,
+      normalizeDiv255: true,
+    );
+
+    // 3. Inference YOLOv8n (Shape [1, 5, 2100])
+    final Stopwatch yoloWatch = Stopwatch()..start();
+    final List<List<List<double>>> yoloOutput = _createYoloOutputBuffer();
     await _yoloIsolate!.run(yoloInputBuffer, yoloOutput);
     yoloWatch.stop();
     metrics.yoloTimeMs = yoloWatch.elapsedMilliseconds;
 
     // 4. Extract ROI & Penerapan NMS
-    List<Map<String, dynamic>> allDetections = _parseYoloOutput(
+    final List<_YoloCandidate> allDetections = _parseYoloOutput(
       yoloOutput[0],
       originalImg.width,
       originalImg.height,
     );
     if (allDetections.isEmpty) {
       // Meaning there is no yolo bounding box detectedd that satisfy. Show error
-      return {
+      return <String, dynamic>{
         'results': <DetectionResult>[],
         'metrics': metrics,
         'imageWidth': originalImg.width,
         'imageHeight': originalImg.height,
       };
     }
+
     // 5. Ambil Top 2 ROI Unik Teratas
-    final top2Detections = allDetections.take(2).toList();
-    List<DetectionResult> finalResults = [];
+    final List<_YoloCandidate> top2Detections = allDetections.take(1).toList();
+    final List<DetectionResult> finalResults = <DetectionResult>[];
 
     // 6. Crop ROI -> MobileNetV3
-    final cropWatch = Stopwatch()..start();
-    final mobileNetWatch = Stopwatch();
+    final Stopwatch cropWatch = Stopwatch()..start();
+    final Stopwatch mobileNetWatch = Stopwatch();
 
-    for (var det in top2Detections) {
-      Rect box = det['box'];
-      double yoloScore = det['score'];
+    for (final _YoloCandidate det in top2Detections) {
+      final Rect box = det.box;
+      final double yoloScore = det.score;
 
       cropWatch.start();
       // Validasi boundary cropping
-      int cropX = box.left.toInt().clamp(0, originalImg.width - 1);
-      int cropY = box.top.toInt().clamp(0, originalImg.height - 1);
-      int cropW = box.width.toInt().clamp(1, originalImg.width - cropX);
-      int cropH = box.height.toInt().clamp(1, originalImg.height - cropY);
+      final double padW = box.width * roiPaddingRatio;
+      final double padH = box.height * roiPaddingRatio;
 
-      img.Image croppedRoi = img.copyCrop(
+      final int cropX = (box.left - padW).floor().clamp(0, originalImg.width - 1);
+      final int cropY = (box.top - padH).floor().clamp(0, originalImg.height - 1);
+      final int right = (box.right + padW).ceil().clamp(
+        cropX + 1,
+        originalImg.width,
+      );
+      final int bottom = (box.bottom + padH).ceil().clamp(
+        cropY + 1,
+        originalImg.height,
+      );
+
+      final int cropW = right - cropX;
+      final int cropH = bottom - cropY;
+
+      final img.Image croppedRoi = img.copyCrop(
         originalImg,
         x: cropX,
         y: cropY,
@@ -152,23 +192,28 @@ class CascadePipeline {
         height: cropH,
       );
 
-      img.Image resizedRoi = img.copyResize(
+      final img.Image resizedRoi = img.copyResize(
         croppedRoi,
         width: 224,
         height: 224,
       );
-      Float32List mobileNetInput = _imageToFloat32Buffer(resizedRoi, 224, 224);
+      // Sesuai Python: input float32 0..255 tanpa dibagi 255.0
+      final Float32List mobileNetInput = _imageToFloat32Buffer(
+        resizedRoi,
+        224,
+        224,
+        normalizeDiv255: false,
+      );
       cropWatch.stop();
 
       mobileNetWatch.start();
-      var clsOutput = List.filled(
-        1 * _labels.length,
-        0.0,
-      ).reshape([1, _labels.length]);
+      final List<List<double>> clsOutput = _createMobileNetOutputBuffer(
+        _labels.length,
+      );
       await _mobileNetIsolate!.run(mobileNetInput, clsOutput);
       mobileNetWatch.stop();
 
-      List<double> scores = List<double>.from(clsOutput[0]);
+      final List<double> scores = List<double>.from(clsOutput[0]);
       int bestClassIdx = 0;
       double maxScore = scores[0];
       for (int i = 1; i < scores.length; i++) {
@@ -177,7 +222,7 @@ class CascadePipeline {
           bestClassIdx = i;
         }
       }
-      final label = (maxScore >= classificThresshold)
+      final String label = (maxScore >= classificThresshold)
           ? _labels[bestClassIdx]
           : failedClassific;
 
@@ -197,7 +242,7 @@ class CascadePipeline {
     totalWatch.stop();
     metrics.totalTimeMs = totalWatch.elapsedMilliseconds;
 
-    return {
+    return <String, dynamic>{
       'results': finalResults,
       'metrics': metrics,
       'imageWidth': originalImg.width,
@@ -205,15 +250,38 @@ class CascadePipeline {
     };
   }
 
-  Float32List _imageToFloat32Buffer(img.Image image, int width, int height) {
-    var buffer = Float32List(1 * width * height * 3);
+  List<List<List<double>>> _createYoloOutputBuffer() {
+    return List<List<List<double>>>.generate(
+      1,
+      (_) => List<List<double>>.generate(
+        5,
+        (_) => List<double>.filled(2100, 0.0),
+      ),
+    );
+  }
+
+  List<List<double>> _createMobileNetOutputBuffer(int numClasses) {
+    return List<List<double>>.generate(
+      1,
+      (_) => List<double>.filled(numClasses, 0.0),
+    );
+  }
+
+  Float32List _imageToFloat32Buffer(
+    img.Image image,
+    int width,
+    int height, {
+    bool normalizeDiv255 = true,
+  }) {
+    final Float32List buffer = Float32List(1 * width * height * 3);
     int pixelIndex = 0;
+    final double divisor = normalizeDiv255 ? 255.0 : 1.0;
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        var pixel = image.getPixel(x, y);
-        buffer[pixelIndex++] = pixel.r / 255.0;
-        buffer[pixelIndex++] = pixel.g / 255.0;
-        buffer[pixelIndex++] = pixel.b / 255.0;
+        final img.Pixel pixel = image.getPixel(x, y);
+        buffer[pixelIndex++] = pixel.r / divisor;
+        buffer[pixelIndex++] = pixel.g / divisor;
+        buffer[pixelIndex++] = pixel.b / divisor;
       }
     }
     return buffer;
@@ -222,51 +290,49 @@ class CascadePipeline {
   // Parsing Dinamis Output YOLOv8 [9, 8400]
 
   /// Fungsi pembantu Sigmoid jika model mengeluarkan raw logits
+  // ignore: unused_element
   double _sigmoid(double x) => 1.0 / (1.0 + math.exp(-x));
 
   /// Parsing YOLO output also applay threshold.
   /// If List empty menaing there is no bounding box that satisfy the yoloThrehold
-  List<Map<String, dynamic>> _parseYoloOutput(
+  List<_YoloCandidate> _parseYoloOutput(
     List<List<double>> output,
     int imgW,
     int imgH,
   ) {
-    List<Map<String, dynamic>> rawBoxes = [];
-    // int numChannels = output.length; // 5 kanal
-
-    // 1. Turunkan threshold awal untuk inspeksi deteksi
+    final List<_YoloCandidate> rawBoxes = <_YoloCandidate>[];
 
     double maxScoreFoundInModel = 0.0;
 
-    for (int i = 0; i < 8400; i++) {
-      double rawScore = output[4][i];
-
-      // Terapkan Sigmoid jika nilai score di luar rentang [0.0, 1.0]
-      double score = (rawScore < 0.0 || rawScore > 1.0)
-          ? _sigmoid(rawScore)
-          : rawScore;
+    for (int i = 0; i < 2100; i++) {
+      final double rawScore = output[4][i];
+      final double score = rawScore;
 
       if (score > maxScoreFoundInModel) {
         maxScoreFoundInModel = score;
       }
 
       if (score > yoloThreshold) {
-        double rawCx = output[0][i];
-        double rawCy = output[1][i];
-        double rawW = output[2][i];
-        double rawH = output[3][i];
+        final double rawCx = output[0][i];
+        final double rawCy = output[1][i];
+        final double rawW = output[2][i];
+        final double rawH = output[3][i];
 
-        // Detect Otomatis: Apakah koordinat piksel (0-640) atau ternormalisasi (0-1)
-        bool isNormalized =
+        // Detect Otomatis: Apakah koordinat piksel (0-320) atau ternormalisasi (0-1)
+        final bool isNormalized =
             rawCx <= 1.0 && rawCy <= 1.0 && rawW <= 1.0 && rawH <= 1.0;
 
-        double cx = isNormalized ? rawCx * imgW : (rawCx / 640.0) * imgW;
-        double cy = isNormalized ? rawCy * imgH : (rawCy / 640.0) * imgH;
-        double w = isNormalized ? rawW * imgW : (rawW / 640.0) * imgW;
-        double h = isNormalized ? rawH * imgH : (rawH / 640.0) * imgH;
+        final double cx = isNormalized
+            ? rawCx * imgW
+            : (rawCx / yoloInputSize) * imgW;
+        final double cy = isNormalized
+            ? rawCy * imgH
+            : (rawCy / yoloInputSize) * imgH;
+        final double w = isNormalized ? rawW * imgW : (rawW / yoloInputSize) * imgW;
+        final double h = isNormalized ? rawH * imgH : (rawH / yoloInputSize) * imgH;
 
-        Rect rect = Rect.fromLTWH(cx - (w / 2), cy - (h / 2), w, h);
-        rawBoxes.add({'box': rect, 'score': score});
+        final Rect rect = Rect.fromLTWH(cx - (w / 2), cy - (h / 2), w, h);
+        rawBoxes.add(_YoloCandidate(box: rect, score: score));
       }
     }
 
@@ -279,20 +345,18 @@ class CascadePipeline {
   }
 
   // Non-Maximum Suppression (NMS)
-  List<Map<String, dynamic>> _applyNMS(
-    List<Map<String, dynamic>> boxes, {
+  List<_YoloCandidate> _applyNMS(
+    List<_YoloCandidate> boxes, {
     required double iouThreshold,
   }) {
-    boxes.sort(
-      (a, b) => (b['score'] as double).compareTo(a['score'] as double),
-    );
-    List<Map<String, dynamic>> selected = [];
+    final List<_YoloCandidate> sortedBoxes = List<_YoloCandidate>.from(boxes)
+      ..sort((_YoloCandidate a, _YoloCandidate b) => b.score.compareTo(a.score));
+    final List<_YoloCandidate> selected = <_YoloCandidate>[];
 
-    for (var box in boxes) {
+    for (final _YoloCandidate box in sortedBoxes) {
       bool keep = true;
-      for (var sel in selected) {
-        if (_calculateIoU(box['box'] as Rect, sel['box'] as Rect) >
-            iouThreshold) {
+      for (final _YoloCandidate sel in selected) {
+        if (_calculateIoU(box.box, sel.box) > iouThreshold) {
           keep = false;
           break;
         }
@@ -305,10 +369,10 @@ class CascadePipeline {
   }
 
   double _calculateIoU(Rect a, Rect b) {
-    Rect intersection = a.intersect(b);
+    final Rect intersection = a.intersect(b);
     if (intersection.width <= 0 || intersection.height <= 0) return 0.0;
-    double interArea = intersection.width * intersection.height;
-    double unionArea = (a.width * a.height) + (b.width * b.height) - interArea;
+    final double interArea = intersection.width * intersection.height;
+    final double unionArea = (a.width * a.height) + (b.width * b.height) - interArea;
     return unionArea <= 0 ? 0.0 : interArea / unionArea;
   }
 

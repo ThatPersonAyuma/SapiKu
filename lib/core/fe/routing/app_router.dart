@@ -16,7 +16,7 @@ import 'package:sapiku/plugins/management/fe/pages/product_scan_qr_page.dart';
 import 'package:sapiku/plugins/management/fe/pages/product_update_stock_page.dart';
 
 class AppRouter {
-  static const String home = '/';
+  static const String home = '/home';
   static const String detection = '/detection';
   static const String detectionCamera = '/detection/camera';
   static const String detectionFailure = '/detection/failure';
@@ -24,13 +24,17 @@ class AppRouter {
   static const String management = '/management';
   static const String managementPencatatan = '/management/pencatatan';
   static const String managementPenjualan = '/management/penjualan';
-  static const String managementPenjualanDetail = '/management/penjualan/detail';
-  static const String managementPenjualanTambah = '/management/penjualan/tambah';
-  static const String managementPenjualanLaporan = '/management/penjualan/laporan';
+  static const String managementPenjualanDetail =
+      '/management/penjualan/detail';
+  static const String managementPenjualanTambah =
+      '/management/penjualan/tambah';
+  static const String managementPenjualanLaporan =
+      '/management/penjualan/laporan';
   static const String managementTambah = '/management/tambah';
   static const String managementProductDetail = '/management/product/detail';
   static const String managementProductScanQr = '/management/product/scan-qr';
-  static const String managementProductUpdateStock = '/management/product/update-stock';
+  static const String managementProductUpdateStock =
+      '/management/product/update-stock';
 
   static Route<dynamic> onGenerateRoute(RouteSettings s) {
     switch (s.name) {
@@ -54,9 +58,17 @@ class AppRouter {
         {
           final args = s.arguments as Map<String, dynamic>?;
           if (args != null && args['transaction'] != null) {
-            return _slide(PenjualanDetailPage(transaction: args['transaction']), s);
+            return _slide(
+              PenjualanDetailPage(transaction: args['transaction']),
+              s,
+            );
           }
-          return _slide(const Scaffold(body: Center(child: Text('Data transaksi tidak ditemukan'))), s);
+          return _slide(
+            const Scaffold(
+              body: Center(child: Text('Data transaksi tidak ditemukan')),
+            ),
+            s,
+          );
         }
       case managementPenjualanTambah:
         return _slide(const PenjualanTambahPage(), s);
@@ -64,20 +76,26 @@ class AppRouter {
         return _slide(const LaporanPenjualanPage(), s);
       case managementTambah:
         return _slide(const AddProductPage(), s);
-       case managementProductDetail:
-         {
-           final args = s.arguments as Map<String, dynamic>?;
-           if (args != null && args['product'] != null) {
-             return _slide(ProductDetailPage(product: args['product']), s);
-           }
-           return _slide(const Scaffold(body: Center(child: Text('Produk tidak ditemukan'))), s);
-         }
-       case managementProductScanQr:
-         return _slide(const ProductScanQrPage(), s);
-       case managementProductUpdateStock:
-         return _slide(const ProductUpdateStockPage(), s);
-       default:
-        return _slide(const Scaffold(body: Center(child: Text('Route not found'))), s);
+      case managementProductDetail:
+        {
+          final args = s.arguments as Map<String, dynamic>?;
+          if (args != null && args['product'] != null) {
+            return _slide(ProductDetailPage(product: args['product']), s);
+          }
+          return _slide(
+            const Scaffold(body: Center(child: Text('Produk tidak ditemukan'))),
+            s,
+          );
+        }
+      case managementProductScanQr:
+        return _slide(const ProductScanQrPage(), s);
+      case managementProductUpdateStock:
+        return _slide(const ProductUpdateStockPage(), s);
+      default:
+        return _slide(
+          const Scaffold(body: Center(child: Text('Route not found'))),
+          s,
+        );
     }
   }
 
@@ -88,7 +106,10 @@ class AppRouter {
       reverseTransitionDuration: const Duration(milliseconds: 250),
       pageBuilder: (_, __, ___) => page,
       transitionsBuilder: (_, anim, __, child) {
-        final tween = Tween(begin: const Offset(1, 0), end: Offset.zero).chain(CurveTween(curve: Curves.easeInOut));
+        final tween = Tween(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeInOut));
         return SlideTransition(position: anim.drive(tween), child: child);
       },
     );
