@@ -1051,6 +1051,22 @@ class TransactionDetail {
 /// Class to access utils method for management feature
 class ManageUtils {
   static const _cloudPwKey = "cloudPwKey";
+  static const _cloudVerifiedKey = "cloudPwVerifiedKey";
+
+  /// Menandai bahwa password cloud sudah diverifikasi. Disimpan permanen agar
+  /// dialog sinkronisasi tidak meminta password lagi setelah aplikasi dibuka ulang.
+  static bool _cloudSyncVerified = false;
+  static Future<bool> isCloudSyncVerified() async {
+    if (_cloudSyncVerified) return true;
+    final value = await _storage.read(key: _cloudVerifiedKey);
+    _cloudSyncVerified = value == '1';
+    return _cloudSyncVerified;
+  }
+
+  static Future<void> markCloudSyncVerified() async {
+    _cloudSyncVerified = true;
+    await _storage.write(key: _cloudVerifiedKey, value: '1');
+  }
 
   static final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(),
@@ -2236,9 +2252,20 @@ class SyncEngine {
       // Deletion must be run
       Iterable<CommitTrack> transactionCommits = transactionCommitDatas;
       if (modifiedTransactionByCloudIds != null) {
-        transactionCommits = transactionCommitDatas.where(
-          (e) => !modifiedTransactionByCloudIds!.contains(e.recordId),
-        );
+        final keptCommits = <CommitTrack>[];
+        for (final commit in transactionCommitDatas) {
+          // Detail transaksi tetap harus dipush, sedangkan perubahan lain
+          // yang sudah dikalahkan versi cloud dibuang agar tidak menggantung.
+          if (commit.commitType != CommitType.transactionDetailsPush &&
+              modifiedTransactionByCloudIds!.contains(commit.recordId)) {
+            if (!await commit.destroy()) {
+              print("Error on destroy filtered transaction commit");
+            }
+          } else {
+            keptCommits.add(commit);
+          }
+        }
+        transactionCommits = keptCommits;
       }
       print("After filtered: $transactionCommits");
       await _processTransactionDiff(batch, transactionCommits);
@@ -2602,6 +2629,9 @@ class SyncEngine {
             print(
               "Error on pushing transaction with id ${commitTrack.recordId}",
             );
+            if (!await commitTrack.destroy()) {
+              print("Error on destroy commit track without transaction");
+            }
             continue;
           }
           await supabase
@@ -2618,16 +2648,25 @@ class SyncEngine {
               "Gagal mendapatkan data transaksi, id: ${commitTrack.recordId}",
             );
             print("Datas: ${await Transaction.getAll()}");
+            if (!await commitTrack.destroy()) {
+              print("Error on destroy commit track without transaction");
+            }
             continue;
           }
 
           final tDetails = await transaction.getAllTransactionDetails();
-          if (tDetails == null || tDetails.isEmpty) {
+          if (tDetails != null && tDetails.isEmpty) {
+            // Tidak ada detail transaksi untuk dipush, commit tidak diperlukan
+            // lagi agar status pending tidak menggantung.
+            if (!await commitTrack.destroy()) {
+              print("Error saat mencoba menghapus commit detail kosong");
+            }
+          } else if (tDetails == null) {
             print(
               """Transaction Details: ${await LocalDBHandler.runRawSelectQuery("SELECT * FROM ${TransactionDetail.tableName}")}""",
             );
             print(
-              "Cant get transaction detail or details are empty in attempt to push data, : $tDetails",
+              "Cant get transaction detail in attempt to push data, : $tDetails",
             );
           } else {
             try {
