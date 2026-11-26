@@ -82,6 +82,22 @@ class SyncEngine {
   static bool isSyncing = false;
 
   static const _cloudPwKey = "cloudPwKey";
+  static const _cloudVerifiedKey = "cloudPwVerifiedKey";
+
+  /// Menandai bahwa password cloud sudah diverifikasi. Disimpan permanen agar
+  /// dialog sinkronisasi tidak meminta password lagi setelah aplikasi dibuka ulang.
+  static bool _cloudSyncVerified = false;
+  static Future<bool> isCloudSyncVerified() async {
+    if (_cloudSyncVerified) return true;
+    final value = await _storage.read(key: _cloudVerifiedKey);
+    _cloudSyncVerified = value == '1';
+    return _cloudSyncVerified;
+  }
+
+  static Future<void> markCloudSyncVerified() async {
+    _cloudSyncVerified = true;
+    await _storage.write(key: _cloudVerifiedKey, value: '1');
+  }
 
   static final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(),
