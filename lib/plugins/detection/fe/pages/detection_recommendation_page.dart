@@ -4,8 +4,8 @@ import 'package:sapiku/core/fe/theme/app_colors.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
+import 'package:sapiku/plugins/detection/be/db_class/deases_Detection.dart' show DeasesDetection;
 import 'package:sapiku/plugins/detection/be/detection_pipeline.dart';
-import 'package:sapiku/plugins/detection/be/be_app.dart';
 
 class DetectionRecommendationPage extends StatefulWidget {
   final List<DetectionResult> results;

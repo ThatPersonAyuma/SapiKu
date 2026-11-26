@@ -1,13 +1,13 @@
 import 'dart:io';
-import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:sapiku/core/fe/theme/app_colors.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
+import 'package:sapiku/plugins/detection/be/db_class/deases_Detection.dart' show DeasesDetection;
 import 'package:sapiku/plugins/detection/be/detection_pipeline.dart';
 import 'package:sapiku/plugins/detection/fe/pages/detection_recommendation_page.dart';
-import 'package:sapiku/plugins/detection/be/be_app.dart';
 import 'package:sapiku/plugins/detection/fe/widgets/bounding_box_painter.dart';
 
 class DetectionResultPage extends StatefulWidget {

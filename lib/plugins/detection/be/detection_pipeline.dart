@@ -6,7 +6,8 @@ import 'package:image/image.dart' as img;
 import 'dart:math' as math;
 
 import 'package:path_provider/path_provider.dart';
-import 'package:sapiku/plugins/detection/be/be_app.dart';
+import 'package:sapiku/plugins/detection/be/db_class/deases.dart' show Deases;
+import 'package:sapiku/plugins/detection/be/plugin.dart';
 import 'package:sapiku/utils/utils.dart';
 
 class DetectionResult {
@@ -47,11 +48,11 @@ class CascadePipeline {
   static const double roiPaddingRatio = 0.08; // margin 8% di sekitar bbox
 
   /// Used for thressholding YOLO bounding box
-  static const double yoloThreshold = 0.001;
+  static const double yoloThreshold = 0.5;
 
   /// Thresshold for classification.
   /// Used for identify if classification prediction is good enough
-  static const double classificThresshold = 0.80;
+  static const double classificThresshold = 0.8;
 
   /// PlaceHolder label for label that failed to be detected by MobileNetv3
   static const String failedClassific = "Gagal Mendeteksi";
@@ -73,6 +74,7 @@ class CascadePipeline {
       ),
       options: options,
     );
+    print("YOLO interpreter shape: ${yoloInterp.getInputTensor(0).shape}");
     _yoloIsolate = await IsolateInterpreter.create(address: yoloInterp.address);
 
     // final mobileNetInterp = await Interpreter.fromAsset('assets/models/mobilenetv3_lumpy_f32.tflite');
@@ -117,7 +119,7 @@ class CascadePipeline {
       };
     }
 
-    // 2. Preprocess YOLOv8 (320x320, normalisasi / 255.0)
+    // 2. Preprocess YOLOv8 (320x320)
     final img.Image yoloInputImg = img.copyResize(
       originalImg,
       width: yoloInputSize,
@@ -128,6 +130,7 @@ class CascadePipeline {
       yoloInputSize,
       yoloInputSize,
       normalizeDiv255: true,
+      isNCHW: true,
     );
 
     // 3. Inference YOLOv8n (Shape [1, 5, 2100])
@@ -145,11 +148,30 @@ class CascadePipeline {
     );
     if (allDetections.isEmpty) {
       // Meaning there is no yolo bounding box detectedd that satisfy. Show error
+      // final resFallback = await _fallback(yoloInputImg);
+      // return <String, dynamic>{
+      //   'results': <DetectionResult>[
+      //     DetectionResult(
+      //       boundingBox: Rect.fromLTWH(
+      //         (yoloInputImg.width - 224) / 2,
+      //         (yoloInputImg.height - 224) / 2,
+      //         224,
+      //         224,
+      //       ),
+      //       yoloScore: -1,
+      //       label: resFallback.$2,
+      //       classificationScore: resFallback.$1,
+      //     ),
+      //   ],
+      //   'metrics': metrics,
+      //   'imageWidth': originalImg.width,
+      //   'imageHeight': originalImg.height,
+      // };
       return <String, dynamic>{
         'results': <DetectionResult>[],
         'metrics': metrics,
-        'imageWidth': originalImg.width,
-        'imageHeight': originalImg.height,
+        'imageWidth': 0,
+        'imageHeight': 0,
       };
     }
 
@@ -170,8 +192,14 @@ class CascadePipeline {
       final double padW = box.width * roiPaddingRatio;
       final double padH = box.height * roiPaddingRatio;
 
-      final int cropX = (box.left - padW).floor().clamp(0, originalImg.width - 1);
-      final int cropY = (box.top - padH).floor().clamp(0, originalImg.height - 1);
+      final int cropX = (box.left - padW).floor().clamp(
+        0,
+        originalImg.width - 1,
+      );
+      final int cropY = (box.top - padH).floor().clamp(
+        0,
+        originalImg.height - 1,
+      );
       final int right = (box.right + padW).ceil().clamp(
         cropX + 1,
         originalImg.width,
@@ -242,6 +270,16 @@ class CascadePipeline {
     totalWatch.stop();
     metrics.totalTimeMs = totalWatch.elapsedMilliseconds;
 
+    if (finalResults.first.label == failedClassific) {
+      final resFallback = await _fallback(originalImg);
+      finalResults[0] = DetectionResult(
+        boundingBox: Rect.fromLTWH((320 - 224) / 2, (320 - 224) / 2, 224, 224),
+        yoloScore: -1,
+        label: resFallback.$2,
+        classificationScore: resFallback.$1,
+      );
+    }
+
     return <String, dynamic>{
       'results': finalResults,
       'metrics': metrics,
@@ -253,10 +291,8 @@ class CascadePipeline {
   List<List<List<double>>> _createYoloOutputBuffer() {
     return List<List<List<double>>>.generate(
       1,
-      (_) => List<List<double>>.generate(
-        5,
-        (_) => List<double>.filled(2100, 0.0),
-      ),
+      (_) =>
+          List<List<double>>.generate(5, (_) => List<double>.filled(2100, 0.0)),
     );
   }
 
@@ -272,22 +308,34 @@ class CascadePipeline {
     int width,
     int height, {
     bool normalizeDiv255 = true,
+    bool isNCHW = false,
   }) {
     final Float32List buffer = Float32List(1 * width * height * 3);
     int pixelIndex = 0;
     final double divisor = normalizeDiv255 ? 255.0 : 1.0;
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final img.Pixel pixel = image.getPixel(x, y);
-        buffer[pixelIndex++] = pixel.r / divisor;
-        buffer[pixelIndex++] = pixel.g / divisor;
-        buffer[pixelIndex++] = pixel.b / divisor;
+    if (isNCHW) {
+      final int channelSize = width * height;
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          final img.Pixel pixel = image.getPixel(x, y);
+          final int idx = y * width + x;
+          buffer[idx] = pixel.r / divisor;
+          buffer[channelSize + idx] = pixel.g / divisor;
+          buffer[2 * channelSize + idx] = pixel.b / divisor;
+        }
+      }
+    }else{
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          final img.Pixel pixel = image.getPixel(x, y);
+          buffer[pixelIndex++] = pixel.r / divisor;
+          buffer[pixelIndex++] = pixel.g / divisor;
+          buffer[pixelIndex++] = pixel.b / divisor;
+        }
       }
     }
     return buffer;
   }
-
-  // Parsing Dinamis Output YOLOv8 [9, 8400]
 
   /// Fungsi pembantu Sigmoid jika model mengeluarkan raw logits
   // ignore: unused_element
@@ -328,8 +376,12 @@ class CascadePipeline {
         final double cy = isNormalized
             ? rawCy * imgH
             : (rawCy / yoloInputSize) * imgH;
-        final double w = isNormalized ? rawW * imgW : (rawW / yoloInputSize) * imgW;
-        final double h = isNormalized ? rawH * imgH : (rawH / yoloInputSize) * imgH;
+        final double w = isNormalized
+            ? rawW * imgW
+            : (rawW / yoloInputSize) * imgW;
+        final double h = isNormalized
+            ? rawH * imgH
+            : (rawH / yoloInputSize) * imgH;
 
         final Rect rect = Rect.fromLTWH(cx - (w / 2), cy - (h / 2), w, h);
         rawBoxes.add(_YoloCandidate(box: rect, score: score));
@@ -349,8 +401,9 @@ class CascadePipeline {
     List<_YoloCandidate> boxes, {
     required double iouThreshold,
   }) {
-    final List<_YoloCandidate> sortedBoxes = List<_YoloCandidate>.from(boxes)
-      ..sort((_YoloCandidate a, _YoloCandidate b) => b.score.compareTo(a.score));
+    final List<_YoloCandidate> sortedBoxes = List<_YoloCandidate>.from(
+      boxes,
+    )..sort((_YoloCandidate a, _YoloCandidate b) => b.score.compareTo(a.score));
     final List<_YoloCandidate> selected = <_YoloCandidate>[];
 
     for (final _YoloCandidate box in sortedBoxes) {
@@ -372,8 +425,64 @@ class CascadePipeline {
     final Rect intersection = a.intersect(b);
     if (intersection.width <= 0 || intersection.height <= 0) return 0.0;
     final double interArea = intersection.width * intersection.height;
-    final double unionArea = (a.width * a.height) + (b.width * b.height) - interArea;
+    final double unionArea =
+        (a.width * a.height) + (b.width * b.height) - interArea;
     return unionArea <= 0 ? 0.0 : interArea / unionArea;
+  }
+
+  img.Image _extract224From320(
+    img.Image img320, {
+    double? centerX320,
+    double? centerY320,
+  }) {
+    const int patchSize = 224;
+    final double cx = centerX320 ?? (img320.width / 2.0);
+    final double cy = centerY320 ?? (img320.height / 2.0);
+
+    final int x = (cx - patchSize / 2.0).round().clamp(
+      0,
+      img320.width - patchSize,
+    );
+    final int y = (cy - patchSize / 2.0).round().clamp(
+      0,
+      img320.height - patchSize,
+    );
+
+    return img.copyCrop(
+      img320,
+      x: x,
+      y: y,
+      width: patchSize,
+      height: patchSize,
+    );
+  }
+
+  Future<(double, String)> _fallback(img.Image oriImage) async {
+    final resizedImage = _extract224From320(oriImage);
+    final Float32List mobileNetInput = _imageToFloat32Buffer(
+      resizedImage,
+      224,
+      224,
+      normalizeDiv255: false,
+    );
+    final List<List<double>> clsOutput = _createMobileNetOutputBuffer(
+      _labels.length,
+    );
+    await _mobileNetIsolate!.run(mobileNetInput, clsOutput);
+
+    final List<double> scores = List<double>.from(clsOutput[0]);
+    int bestClassIdx = 0;
+    double maxScore = scores[0];
+    for (int i = 1; i < scores.length; i++) {
+      if (scores[i] > maxScore) {
+        maxScore = scores[i];
+        bestClassIdx = i;
+      }
+    }
+    final String label = (maxScore >= classificThresshold)
+        ? _labels[bestClassIdx]
+        : failedClassific;
+    return (maxScore, label);
   }
 
   /// Use for get the Text Showed in the detetection result.

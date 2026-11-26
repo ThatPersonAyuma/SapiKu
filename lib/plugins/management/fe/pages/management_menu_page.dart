@@ -5,7 +5,8 @@ import 'package:sapiku/core/fe/utils/custom_icons.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
-import 'package:sapiku/plugins/management/be/be_app.dart';
+import 'package:sapiku/plugins/management/be/plugin.dart';
+import 'package:sapiku/plugins/management/be/sync.dart' show SyncEngine;
 
 class ManagementMenuPage extends StatefulWidget {
   const ManagementMenuPage({super.key});
@@ -107,8 +108,8 @@ class _ManagementMenuPageState extends State<ManagementMenuPage> {
                         setState(() => _syncing = true);
 
                         try {
-                          await ManageUtils.setCloudSyncPw(password);
-                          final loginSuccess = await ManageUtils.login();
+                          await SyncEngine.setCloudSyncPw(password);
+                          final loginSuccess = await SyncEngine.login();
                           final syncSuccess = loginSuccess
                               ? await SyncEngine.runSync()
                               : false;

@@ -3,7 +3,9 @@ import 'package:sapiku/core/fe/theme/app_colors.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
-import 'package:sapiku/plugins/management/be/be_app.dart';
+import 'package:sapiku/plugins/management/be/plugin.dart';
+import 'package:sapiku/plugins/management/be/report.dart' show ProductReport;
+import 'package:sapiku/plugins/management/be/utils.dart';
 
 class LaporanPenjualanPage extends StatelessWidget {
   const LaporanPenjualanPage({super.key});
@@ -86,7 +88,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
 
   Future<void> _loadReport() async {
     setState(() => _loading = true);
-    final records = await ManageUtils.getTransactionReportShow(_startDate, _endDate);
+    final records = await Report.getTransactionReportShow(_startDate, _endDate);
     if (mounted) {
       setState(() {
         _records = records ?? [];
@@ -124,7 +126,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
   Future<void> _downloadReport() async {
     setState(() => _downloading = true);
     try {
-      final success = await ManageUtils.saveReport(_startDate, _endDate);
+      final success = await Report.saveReport(_startDate, _endDate);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(success ? 'Laporan berhasil diunduh' : 'Gagal mengunduh laporan')),
@@ -339,7 +341,7 @@ class _PencatatanReportTabState extends State<_PencatatanReportTab> {
     setState(() => _loading = true);
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    final reports = await ManageUtils.createProdReport(startOfMonth, now);
+    final reports = await Report.createProdReport(startOfMonth, now);
     if (mounted) {
       setState(() {
         _reports = reports ?? [];
@@ -353,7 +355,7 @@ class _PencatatanReportTabState extends State<_PencatatanReportTab> {
     try {
       final now = DateTime.now();
       final startOfMonth = DateTime(now.year, now.month, 1);
-      final success = await ManageUtils.saveReport(startOfMonth, now, productData: _reports);
+      final success = await Report.saveReport(startOfMonth, now, productData: _reports);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(success ? 'Laporan berhasil diunduh' : 'Gagal mengunduh laporan')),

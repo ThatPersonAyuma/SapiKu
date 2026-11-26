@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
-import 'package:sapiku/plugins/detection/be/be_app.dart';
+import 'package:sapiku/plugins/detection/be/db_class/deases_Detection.dart' show DeasesDetection;
+import 'package:sapiku/plugins/detection/be/db_class/scan.dart' show Scan;
 import 'package:sapiku/plugins/detection/fe/pages/detection_history_detail_page.dart';
 import 'package:sapiku/plugins/detection/fe/widgets/history_card.dart';
 

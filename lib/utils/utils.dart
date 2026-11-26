@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,90 @@ Future<File?> downloadPublicFile(
     // Penanganan kesalahan
   }
   return null;
+}
+
+int getIncrement(int current, double next) {
+  return next.floor() - current;
+}
+
+Future<bool> downloadAndExtractZipWProgress(
+  String fileId,
+  String prefix,
+  void Function(int) progress, {
+  int maxContribution = 60,
+  int decodeComtribution = 10,
+}) async {
+  final client = http.Client();
+  final url = Uri.parse(
+    'https://drive.google.com/uc?export=download&id=$fileId',
+  );
+  try {
+    // ==========================================================
+    // TAHAP 1: SINGLE FILE DOWNLOAD (Progress berdasarkan Bytes)
+    // ==========================================================
+    final request = http.Request('GET', url);
+    final http.StreamedResponse response = await client.send(request);
+    int current = 0;
+    if (response.statusCode == 200) {
+      // Ambil total ukuran file ZIP dari header (jika tersedia)
+      final int totalBytes = response.contentLength ?? 0;
+
+      final List<int> bytes = [];
+
+      // Dengarkan aliran data (chunk) yang masuk satu per satu
+      await for (final chunk in response.stream) {
+        bytes.addAll(chunk);
+
+        // Update progress bar berdasarkan jumlah byte yang baru diterima
+        if (totalBytes > 0) {
+          final progNow = (bytes.length / totalBytes) * maxContribution;
+          final increment = getIncrement(current, progNow);
+          
+          if (increment > 0) {
+            progress(increment);
+            current += increment;
+          }
+        }
+      }
+
+      // Dekode berkas ZIP dari kumpulan byte yang sudah terunduh penuh
+      final archive = ZipDecoder().decodeBytes(Uint8List.fromList(bytes));
+      final destinationDir = await getApplicationDocumentsDirectory();
+      double decodeProg = 0;
+      for (final file in archive) {
+        final filename = file.name;
+        final extractPath = '${destinationDir.path}/$prefix/$filename';
+
+        if (file.isFile) {
+          final data = file.content as List<int>;
+          print('model path: $extractPath');
+          File(extractPath)
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(data);
+        } else {
+          Directory(extractPath).createSync(recursive: true);
+        }
+        decodeProg += decodeComtribution / archive.length;
+        progress(decodeProg.floor());
+        decodeProg -= decodeProg.floor();
+      }
+      return true;
+    } else {
+      PopUpMessage.showOkMessage(
+        PopUpTitle.error,
+        "Terjadi kesalahan ketika mencoba mengunduh zip asset",
+      );
+      return false;
+    }
+  } catch (e) {
+    PopUpMessage.showOkMessage(
+      PopUpTitle.error,
+      "Terjadi kesalahan ketika mencoba mengunduh zip asset",
+    );
+    return false;
+  } finally {
+    client.close();
+  }
 }
 
 /// Same as downloadPublicFile but it is for Zip file which will be unzip to the target directory

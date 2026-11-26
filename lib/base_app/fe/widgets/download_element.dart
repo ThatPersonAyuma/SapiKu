@@ -12,7 +12,7 @@ class DownloadCard extends StatefulWidget {
   final String name;
   final String subtitle;
   final IconData icon;
-  final Future<bool> Function(VoidCallback, String) downloadCallback;
+  final Future<bool> Function(void Function(int),String) downloadCallback;
   final Future<void> Function() removeCallback;
   Plugin? plugin;
   final String version;
@@ -25,7 +25,7 @@ class DownloadCard extends StatefulWidget {
     required this.downloadCallback,
     required this.removeCallback,
     this.plugin,
-    required this.version
+    required this.version,
   });
 
   @override
@@ -35,20 +35,24 @@ class DownloadCard extends StatefulWidget {
 class _DownloadCard extends State<DownloadCard> {
   bool get isSetup => widget.plugin != null && widget.plugin!.isSetup;
   bool _isDownloading = false;
-  int maxProgress = 8;
+  int maxProgress = 100;
   int currentProgress = 0;
   double percentProgress = 0.0;
   bool _isDeleting = false;
-  void downloadProgress() {
+  void downloadProgress(int progress) {
     if (currentProgress == 0) {
       setState(() {
         _isDownloading = true;
       });
     }
     setState(() {
-      currentProgress += 1;
+      currentProgress += progress;
       percentProgress = currentProgress / maxProgress;
     });
+  }
+
+  void setupDownloadBar(int totalProgress) {
+    maxProgress = totalProgress;
   }
 
   Future<void> downloadPlugin() async {

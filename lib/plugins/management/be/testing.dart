@@ -1,7 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sapiku/plugins/management/be/be_app.dart';
+import 'package:sapiku/plugins/management/be/db_class/product.dart' show Product;
+import 'package:sapiku/plugins/management/be/db_class/transaction.dart' show Transaction;
+import 'package:sapiku/plugins/management/be/db_class/transaction_detail.dart' show TransactionDetail, TransactionDetailInsertComponent;
+import 'package:sapiku/plugins/management/be/plugin.dart';
+import 'package:sapiku/plugins/management/be/sync.dart' show doSyncWork;
 import 'package:sapiku/utils/db/local_handler.dart';
 
 // Pastikan mengimpor file model database Anda di sini:

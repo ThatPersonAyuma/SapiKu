@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/core/fe/routing/app_router.dart';
-import 'package:sapiku/plugins/management/be/be_app.dart';
+import 'package:sapiku/plugins/management/be/plugin.dart';
+import 'package:sapiku/plugins/management/be/sync.dart' show SyncEngine, syncCallback;
 import 'package:sapiku/plugins/management/be/testing.dart';
 // import 'package:sapiku/plugins/management/be/uploadImageTest.dart';
 import 'package:sapiku/utils/db/cloud_handler.dart';
@@ -94,7 +95,7 @@ class _AppBootstrapScreenState extends State<AppBootstrapScreen> {
 
       if (!mounted) return;
       setState(() => _statusText = 'Melakukan login otomatis...');
-      final loginRes = await ManageUtils.login();
+      final loginRes = await SyncEngine.login();
       debugPrint('Login Res: $loginRes');
 
       if (!mounted) return;
