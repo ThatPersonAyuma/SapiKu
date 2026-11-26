@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sapiku/base_app/be/app.dart';
+import 'package:sapiku/base_app/be/handler.dart';
 import 'package:sapiku/base_app/fe/models/available_plugin_data.dart';
 import 'package:sapiku/base_app/fe/widgets/plugin_card.dart';
 import 'package:sapiku/core/fe/utils/custom_icons.dart';

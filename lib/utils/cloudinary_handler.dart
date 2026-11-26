@@ -38,6 +38,76 @@ class CloudinaryHandler {
     }
   }
 
+  static Future<String?> downloadAndStoreImageWProgress(
+    String prefix,
+    String filename,
+    void Function(int) callback,
+    int contributeScore,
+  ) async {
+    final client = http.Client();
+    int current = 0;
+
+    try {
+      final url = Uri.parse(
+        "https://res.cloudinary.com/$cloudName/image/upload/v1794695519/sapiku/management/$filename",
+      );
+      final request = http.Request('GET', url);
+      final http.StreamedResponse response = await client.send(request);
+
+      if (response.statusCode == 200) {
+        final int totalBytes = response.contentLength ?? 0;
+        final List<int> bytes = [];
+
+        // Dengarkan aliran data (chunk) gambar yang masuk
+        await for (final chunk in response.stream) {
+          bytes.addAll(chunk);
+
+          if (totalBytes > 0) {
+            // Gunakan bytes.length (kumulatif) agar skala 0 -> contributeScore akurat
+            final progNow = (bytes.length / totalBytes) * contributeScore;
+            final increment = getIncrement(current, progNow);
+            
+            if (increment > 0) {
+              callback(increment);
+              current += increment;
+            }
+          }
+        }
+
+        // Pastikan sisa contributeScore terpenuhi jika totalBytes == 0 atau selisih pembulatan
+        final remaining = contributeScore - current;
+        if (remaining > 0) {
+          callback(remaining);
+        }
+
+        // Simpan kumpulan byte menjadi file gambar
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$prefix/$filename');
+        await file.create(recursive: true);
+        await file.writeAsBytes(bytes);
+
+        print('Gambar berhasil disimpan di: ${file.path}');
+        return file.path;
+      } else {
+        print('Gagal mengunduh. Kode status: ${response.statusCode}');
+        await PopUpMessage.showOkMessage(
+          PopUpTitle.error,
+          "Terjadi kesalahan pada pengunduhan aset gambar.",
+        );
+        return null;
+      }
+    } catch (e) {
+      print('Terjadi kesalahan: $e');
+      await PopUpMessage.showOkMessage(
+        PopUpTitle.error,
+        "Terjadi kesalahan pada sistem pengambilan gambar.",
+      );
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
   static Future<String?> downloadAndStoreImage(
     String prefix,
     String filename,

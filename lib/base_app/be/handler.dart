@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sapiku/base_app/fe/pages/download_plugin.dart';
-import 'package:sapiku/plugins/detection/be/be_app.dart';
-import 'package:sapiku/plugins/management/be/be_app.dart';
+import 'package:sapiku/plugins/detection/be/plugin.dart';
+import 'package:sapiku/plugins/management/be/plugin.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/utils.dart';
 
@@ -15,7 +15,7 @@ class PluginHandler {
     return [for (final map in res) Plugin.createFromMap(map)];
   }
 
-  static Future<bool> getManagementPlugin(VoidCallback callback, String version) async {
+  static Future<bool> getManagementPlugin(void Function(int) callback, String version) async {
     // Start of Before Update With ShoreBird
     if (!await canUpdatePlugin()) {
       return false;
@@ -23,7 +23,6 @@ class PluginHandler {
     // await managementSetup(); // Download Method
     // End of Before Update With ShoreBird
     // Start of After Update With ShoreBird
-    callback();
     return await ManagementPlugin.managementSetup(callback, version);
     // End of After Update With ShoreBird
   }
@@ -40,7 +39,7 @@ class PluginHandler {
     return true;
   }
 
-  static Future<bool> getDetectionPlugin(VoidCallback callback, String version) async {
+  static Future<bool> getDetectionPlugin(void Function(int) callback, String version) async {
     // Start of Before Update With ShoreBird
     if (!await canUpdatePlugin()) {
       return false;
@@ -48,12 +47,11 @@ class PluginHandler {
     // await managementSetup(); // Download Method
     // End of Before Update With ShoreBird
     // Start of After Update With ShoreBird
-    callback();
     return await DetectionPlugin.detectionSetup(callback, version);
     // End of After Update With ShoreBird
   }
 
-  static Future<bool> detectionEnsurePlugin(VoidCallback callback, String version) async {
+  static Future<bool> detectionEnsurePlugin(void Function(int) callback, String version) async {
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM plugins WHERE name = ?",
       [DetectionPlugin.detectionName],
@@ -65,7 +63,6 @@ class PluginHandler {
         """Plugin deteksi penyakit berisi fitur deteksi penyakit kulit sapi. Apakah anda ingin mengunduh plugin Deteksi Penyakit?""",
       );
       if (isDownload) {
-        callback();
         final downRes = await getDetectionPlugin(callback, version);
         return downRes;
       } else {
@@ -77,7 +74,7 @@ class PluginHandler {
     return true;
   }
 
-  static Future<bool> manageEnsurePlugin(VoidCallback callback, String version) async {
+  static Future<bool> manageEnsurePlugin(void Function(int) callback, String version) async {
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM plugins WHERE name = ?",
       [ManagementPlugin.managementName],
@@ -89,7 +86,6 @@ class PluginHandler {
         """Plugin pencatatan berisi pencatatan produk dan penjualan. Apakah anda ingin mengunduh plugin Pencatatan?""",
       );
       if (isDownload) {
-        callback();
         final downRes = await getManagementPlugin(callback, version);
         return downRes;
       } else {
@@ -132,7 +128,7 @@ class PluginHandler {
     BuildContext context,
     String route,
   ) async {
-    final res = await manageEnsurePlugin(() {},"");
+    final res = await manageEnsurePlugin((int p) {},"");
     if (res && context.mounted) {
       Navigator.pushNamed(context, route);
     }
@@ -142,7 +138,7 @@ class PluginHandler {
     BuildContext context,
     String route,
   ) async {
-    final res = await detectionEnsurePlugin(() {},"");
+    final res = await detectionEnsurePlugin((int p) {},"");
     print("Plugin Res: $res, ismounted ${context.mounted}");
     if (res && context.mounted) {
       Navigator.pushNamed(context, route);

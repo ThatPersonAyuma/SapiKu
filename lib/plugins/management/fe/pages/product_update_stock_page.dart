@@ -4,7 +4,8 @@ import 'package:sapiku/core/fe/theme/app_colors.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
-import 'package:sapiku/plugins/management/be/be_app.dart';
+import 'package:sapiku/plugins/management/be/db_class/product.dart' show Product;
+import 'package:sapiku/plugins/management/be/plugin.dart';
 import 'package:sapiku/plugins/management/utils/qr.dart';
 import 'package:sapiku/utils/utils.dart';
 
