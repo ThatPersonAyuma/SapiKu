@@ -5,7 +5,7 @@ import 'package:sapiku/core/fe/utils/custom_icons.dart';
 import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
-import 'package:sapiku/plugins/management/be/be_app.dart';
+import 'package:sapiku/plugins/management/be/sync.dart';
 import 'package:sapiku/utils/utils.dart';
 
 class ManagementMenuPage extends StatefulWidget {
@@ -35,7 +35,7 @@ class _ManagementMenuPageState extends State<ManagementMenuPage> {
 
   Future<void> _showSyncPasswordDialog() async {
     final verified =
-        _passwordVerified || await ManageUtils.isCloudSyncVerified();
+        _passwordVerified || await SyncEngine.isCloudSyncVerified();
     if (!mounted) return;
 
     showDialog(
@@ -44,7 +44,7 @@ class _ManagementMenuPageState extends State<ManagementMenuPage> {
       builder: (ctx) => _SyncPasswordDialog(
         initiallyVerified: verified,
         onVerified: () {
-          ManageUtils.markCloudSyncVerified();
+          SyncEngine.markCloudSyncVerified();
           if (!mounted) return;
           setState(() => _passwordVerified = true);
           _checkPendingSync();
@@ -252,8 +252,8 @@ class _SyncPasswordDialogState extends State<_SyncPasswordDialog> {
       return;
     }
 
-    await ManageUtils.setCloudSyncPw(password);
-    final loginSuccess = await ManageUtils.login();
+    await SyncEngine.setCloudSyncPw(password);
+    final loginSuccess = await SyncEngine.login();
     if (!mounted) return;
     if (!loginSuccess) {
       setState(() {

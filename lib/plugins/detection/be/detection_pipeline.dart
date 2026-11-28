@@ -22,6 +22,10 @@ class DetectionResult {
     required this.label,
     required this.classificationScore,
   });
+  @override
+  String toString() {
+    return 'DetectionResult{boundingBox: $boundingBox, yoloScore: $yoloScore, label: $label, classificationScore: $classificationScore}\nFormatted Box: center dx: ${boundingBox.center.dx}, center.dy: ${boundingBox.center.dy}, width: ${boundingBox.width}, height: ${boundingBox.height}';
+  }
 }
 
 class ProfilingMetrics {
@@ -48,7 +52,7 @@ class CascadePipeline {
   static const double roiPaddingRatio = 0.08; // margin 8% di sekitar bbox
 
   /// Used for thressholding YOLO bounding box
-  static const double yoloThreshold = 0.5;
+  static const double yoloThreshold = 0.4;
 
   /// Thresshold for classification.
   /// Used for identify if classification prediction is good enough
@@ -60,13 +64,12 @@ class CascadePipeline {
   Future<void> initialize() async {
     final InterpreterOptions options = InterpreterOptions();
     // Aktifkan GPU Delegate (Android/iOS)
-    if (Platform.isAndroid) {
-      options.addDelegate(GpuDelegateV2());
-    } else if (Platform.isIOS) {
-      options.addDelegate(GpuDelegate());
-    }
+    // if (Platform.isAndroid) {
+    //   options.addDelegate(GpuDelegateV2());
+    // } else if (Platform.isIOS) {
+    //   options.addDelegate(GpuDelegate());
+    // }
 
-    // final yoloInterp = await Interpreter.fromAsset('assets/models/yolov8n_f32.tflite');
     final Directory destinationDir = await getApplicationDocumentsDirectory();
     final Interpreter yoloInterp = Interpreter.fromFile(
       File(
@@ -148,25 +151,6 @@ class CascadePipeline {
     );
     if (allDetections.isEmpty) {
       // Meaning there is no yolo bounding box detectedd that satisfy. Show error
-      // final resFallback = await _fallback(yoloInputImg);
-      // return <String, dynamic>{
-      //   'results': <DetectionResult>[
-      //     DetectionResult(
-      //       boundingBox: Rect.fromLTWH(
-      //         (yoloInputImg.width - 224) / 2,
-      //         (yoloInputImg.height - 224) / 2,
-      //         224,
-      //         224,
-      //       ),
-      //       yoloScore: -1,
-      //       label: resFallback.$2,
-      //       classificationScore: resFallback.$1,
-      //     ),
-      //   ],
-      //   'metrics': metrics,
-      //   'imageWidth': originalImg.width,
-      //   'imageHeight': originalImg.height,
-      // };
       return <String, dynamic>{
         'results': <DetectionResult>[],
         'metrics': metrics,
@@ -273,7 +257,7 @@ class CascadePipeline {
     if (finalResults.first.label == failedClassific) {
       final resFallback = await _fallback(originalImg);
       finalResults[0] = DetectionResult(
-        boundingBox: Rect.fromLTWH((320 - 224) / 2, (320 - 224) / 2, 224, 224),
+        boundingBox: Rect.fromLTWH((originalImg.width - 224) / 2, (originalImg.height - 224) / 2, 224, 224),
         yoloScore: -1,
         label: resFallback.$2,
         classificationScore: resFallback.$1,
@@ -324,7 +308,7 @@ class CascadePipeline {
           buffer[2 * channelSize + idx] = pixel.b / divisor;
         }
       }
-    }else{
+    } else {
       for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
           final img.Pixel pixel = image.getPixel(x, y);

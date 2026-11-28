@@ -45,6 +45,7 @@ class _CameraPageState extends State<CameraPage> {
     }
     setState(() => _busy = true);
     final entry = await _provider.processImage(_preview!);
+
     setState(() => _busy = false);
     if (!mounted) return;
     if (entry == null) {
@@ -53,16 +54,16 @@ class _CameraPageState extends State<CameraPage> {
       );
       return;
     }
+    print("Entry Result: ${entry.results}");
     // Check if detection succeeded (no results or all have failedClassific)
-    bool isFailed = entry.results.isEmpty || 
+    bool isFailed =
+        entry.results.isEmpty ||
         entry.results.every((r) => r.label == CascadePipeline.failedClassific);
-    
+
     if (isFailed) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => const DetectionFailurePage(),
-        ),
+        MaterialPageRoute(builder: (_) => const DetectionFailurePage()),
       );
       return;
     }
@@ -122,10 +123,16 @@ class _CameraPageState extends State<CameraPage> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white,),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.biotech, size: 26),
-                  label: Text(_busy ? 'Memproses...' : 'Deteksi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),),
+                  label: Text(
+                    _busy ? 'Memproses...' : 'Deteksi',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF2E2E2E),
                     foregroundColor: Colors.white,
@@ -186,7 +193,9 @@ class _CameraPageState extends State<CameraPage> {
           if (_busy)
             Container(
               color: Colors.black45,
-              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
             ),
         ],
       ),
@@ -208,13 +217,11 @@ class _SmallBtn extends StatelessWidget {
     return ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 24),
-      label: Text(label, style: TextStyle(fontSize: 18),),
+      label: Text(label, style: TextStyle(fontSize: 18)),
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.white,
         backgroundColor: Color(0xFF2E2E2E),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12)
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
