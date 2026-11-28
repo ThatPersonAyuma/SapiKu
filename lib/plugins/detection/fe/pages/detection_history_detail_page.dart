@@ -5,21 +5,21 @@ import 'package:sapiku/core/fe/widgets/app_background.dart';
 import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
 import 'package:sapiku/plugins/detection/be/db_class/deases.dart' show Deases;
-import 'package:sapiku/plugins/detection/be/db_class/deases_Detection.dart' show DeasesDetection;
+import 'package:sapiku/plugins/detection/be/db_class/deases_Detection.dart'
+    show DeasesDetection;
 import 'package:sapiku/plugins/detection/be/db_class/scan.dart' show Scan;
 
 class DetectionHistoryDetailPage extends StatefulWidget {
   final DeasesDetection detection;
-  const DetectionHistoryDetailPage({
-    super.key,
-    required this.detection,
-  });
+  const DetectionHistoryDetailPage({super.key, required this.detection});
 
   @override
-  State<DetectionHistoryDetailPage> createState() => _DetectionHistoryDetailPageState();
+  State<DetectionHistoryDetailPage> createState() =>
+      _DetectionHistoryDetailPageState();
 }
 
-class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage> {
+class _DetectionHistoryDetailPageState
+    extends State<DetectionHistoryDetailPage> {
   late Future<List<Scan>?> _scansFuture;
   String? _careMethod;
   bool _loadingCare = true;
@@ -74,10 +74,7 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
               const SizedBox(height: 12),
               const Text(
                 'Apakah Anda yakin ingin menghapus riwayat deteksi ini? Data yang dihapus tidak dapat dikembalikan.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.black87),
               ),
               const SizedBox(height: 18),
               Row(
@@ -88,8 +85,13 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: const Text('Batal'),
                   ),
@@ -101,8 +103,13 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: const Text('Hapus'),
                   ),
@@ -135,9 +142,9 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
     } catch (e) {
       if (!mounted) return;
       setState(() => _isDeleting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -150,7 +157,8 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
     }
   }
 
-  String _fmt(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +176,10 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 140),
-                  child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.black)),
+                  child: Text(
+                    'Error: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
               );
             }
@@ -178,7 +189,10 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
               return const Center(
                 child: Padding(
                   padding: EdgeInsets.only(top: 140),
-                  child: Text('Tidak ada data deteksi', style: TextStyle(color: Colors.black54)),
+                  child: Text(
+                    'Tidak ada data deteksi',
+                    style: TextStyle(color: Colors.black54),
+                  ),
                 ),
               );
             }
@@ -186,7 +200,12 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
             final primaryScan = scans.first;
 
             return ListView(
-              padding: const EdgeInsets.only(left: 14, right: 14, top: 140, bottom: 14),
+              padding: const EdgeInsets.only(
+                left: 14,
+                right: 14,
+                top: 140,
+                bottom: 14,
+              ),
               children: [
                 Container(
                   decoration: BoxDecoration(
@@ -240,7 +259,11 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Center(
-                            child: Icon(Icons.image_not_supported, size: 48, color: Colors.grey),
+                            child: Icon(
+                              Icons.image_not_supported,
+                              size: 48,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                     ],
@@ -321,31 +344,36 @@ class _DetectionHistoryDetailPageState extends State<DetectionHistoryDetailPage>
                           ),
                         ),
                         const SizedBox(height: 12),
-                        ...scans.skip(1).map((scan) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  scan.detectionResult,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.black87,
-                                  ),
+                        ...scans
+                            .skip(1)
+                            .map(
+                              (scan) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        scan.detectionResult,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(scan.confident * 100).toStringAsFixed(0)}%',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Text(
-                                '${(scan.confident * 100).toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )),
+                            ),
                       ],
                     ),
                   ),

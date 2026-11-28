@@ -1,6 +1,5 @@
 
 import 'package:sapiku/plugins/management/be/db_class/product.dart' show Product;
-import 'package:sapiku/plugins/management/be/plugin.dart';
 import 'package:sapiku/plugins/management/be/sync.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
 

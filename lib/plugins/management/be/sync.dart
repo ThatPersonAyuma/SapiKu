@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sapiku/plugins/management/be/db_class/product.dart';
 import 'package:sapiku/plugins/management/be/db_class/transaction.dart';
-import 'package:sapiku/plugins/management/be/db_class/transaction_detail.dart' show TransactionDetail;
+import 'package:sapiku/plugins/management/be/db_class/transaction_detail.dart'
+    show TransactionDetail;
 import 'package:sapiku/plugins/management/be/plugin.dart';
 import 'package:sapiku/plugins/management/be/db_class/commit.dart';
 import 'package:sapiku/plugins/management/fe/pages/notifier.dart';
@@ -16,7 +17,7 @@ import 'package:workmanager/workmanager.dart';
 @pragma('vm:entry-point')
 void syncCallback() {
   Workmanager().executeTask((task, inputData) async {
-    return doSyncWork();
+    return await doSyncWork();
   });
 }
 
@@ -30,7 +31,6 @@ Future<bool> doSyncWork() async {
     WidgetsFlutterBinding.ensureInitialized();
     await CloudHandler.cloudSetup();
     await LocalDBHandler.setup();
-    print("=== BACKGROUND SYNC SUCCESS ===");
 
     // Pastikan SyncEngine.doSync mengembalikan boolean (true jika sukses, false jika gagal)
     bool synced = await SyncEngine.runSync();
@@ -54,6 +54,7 @@ Future<bool> doSyncWork() async {
       duration: const Duration(seconds: 3),
       syncSequence: currentSyncSeq,
     );
+    print("=== BACKGROUND SYNC SUCCESS ===");
   } catch (err) {
     TopSyncNotifier.completeSync(
       isSuccess: false,
@@ -67,7 +68,6 @@ Future<bool> doSyncWork() async {
   }
   return true;
 }
-
 
 typedef NewIdProductData = ({int newId, Product product});
 typedef NewIdTransactionData = ({int newId, Transaction transaction});
@@ -234,16 +234,6 @@ class SyncEngine {
           .gt('updated_at', lastSync)
           .order('table_name', ascending: true);
       print("Res needToSync Transaction: $lastRes");
-      // for (final {
-      //       'id': id as int,
-      //       'table_name': tableName as String,
-      //       'updated_at': updatedAt as String,
-      //     }
-      //     in lastRes) {
-      //   print(
-      //     "id: $id, table_name: $tableName, updated_at: ${DateTime.parse(updatedAt)}, need_to_sync: ${DateTime.parse(lastSync).isBefore(DateTime.parse(updatedAt))}",
-      //   );
-      // }
       return lastRes;
     } catch (e) {
       return [];
@@ -665,11 +655,18 @@ class SyncEngine {
       // Deletion must be run
       Iterable<CommitTrack> transactionCommits = transactionCommitDatas;
       if (modifiedTransactionByCloudIds != null) {
-        transactionCommits = transactionCommitDatas.where(
-          (e) => !modifiedTransactionByCloudIds!.contains(e.recordId),
-        );
+        // The local update can be overwritten by cloud update
+        transactionCommits = transactionCommitDatas.where((e) {
+          final isNotIn = !modifiedTransactionByCloudIds!.contains(e.recordId);
+          if (!isNotIn) {
+            e.destroy();
+          }
+          return isNotIn;
+        });
       }
-      print("After filtered: $transactionCommits");
+      print(
+        "After filtered: $transactionCommits, modified: $modifiedTransactionByCloudIds",
+      );
       await _processTransactionDiff(batch, transactionCommits);
       // isCloudTransactionChange = true;
     }
@@ -1161,7 +1158,9 @@ class SyncEngine {
     }
     SyncEngine.isSyncing = true;
     try {
-      return await doSync();
+      final res = await doSync();
+      print("Sync Res: $res");
+      return res;
     } catch (err) {
       print("Sync error: $err");
       return false;

@@ -24,7 +24,7 @@ class DetectionPlugin {
   static const mobNetFileName = "mobilenetv3_f32.tflite";
 
   // #region Detection Images
-  static const imageName1 = "scaled_1000274709.jpg";
+  static const imageName1 = "scaled_1000278600.jpg";
   static const imageName2 = "scaled_1000274707.jpg";
   // #endregion
 
@@ -34,7 +34,6 @@ class DetectionPlugin {
     void Function(int) callback,
     String version,
   ) async {
-    print("Setup");
     callback(0);
     final res = await LocalDBHandler.runRawSelectQuery(
       "SELECT id, is_setup FROM ${Plugin.tableName} WHERE name = ?",
@@ -210,34 +209,23 @@ class DetectionPlugin {
     batch.insert(Scan.tableName, {
       'label_id': 1,
       'detection_id': 1,
-      'x_center': 0.233,
-      'y_center': 0.450,
-      'width': 0.320,
-      'height': 0.410,
+      'x_center': 393.1062316894531,
+      'y_center': 329.178466796875,
+      'width': 420.15132904052734,
+      'height': 185.45307159423828,
       'result': 'healthy_cowhide',
-      'confidence': 0.945,
+      'confidence': 0.9199845790863037,
     });
 
     batch.insert(Scan.tableName, {
       'label_id': 2,
-      'detection_id': 1,
-      'x_center': 0.675,
-      'y_center': 0.512,
-      'width': 0.280,
-      'height': 0.350,
-      'result': 'lumpy',
-      'confidence': 0.887,
-    });
-
-    batch.insert(Scan.tableName, {
-      'label_id': 3,
       'detection_id': 2,
-      'x_center': 0.500,
-      'y_center': 0.380,
-      'width': 0.450,
-      'height': 0.520,
-      'result': 'mange',
-      'confidence': 0.912,
+      'x_center':337.4947738647461,
+      'y_center': 228.70418548583984,
+      'width': 599.9228668212891,
+      'height': 346.0508728027344,
+      'result': 'lumpy',
+      'confidence': 0.9999493360519409,
     });
   }
 

@@ -57,7 +57,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
 
   Future<void> _loadReport() async {
     setState(() => _loading = true);
-    final records = await ManageUtils.getTransactionReportShow(
+    final records = await Report.getTransactionReportShow(
       _effectiveStart,
       _effectiveEnd,
     );
@@ -98,7 +98,7 @@ class _PenjualanReportTabState extends State<_PenjualanReportTab> {
   Future<void> _downloadReport() async {
     setState(() => _downloading = true);
     try {
-      final success = await ManageUtils.saveReport(_effectiveStart, _effectiveEnd);
+      final success = await Report.saveReport(_effectiveStart, _effectiveEnd);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(success ? 'Laporan berhasil diunduh' : 'Gagal mengunduh laporan')),

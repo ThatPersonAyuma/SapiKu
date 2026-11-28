@@ -3,6 +3,7 @@ import 'package:sapiku/core/fe/routing/app_router.dart';
 import 'package:sapiku/plugins/management/be/plugin.dart';
 import 'package:sapiku/plugins/management/be/sync.dart' show SyncEngine, syncCallback;
 import 'package:sapiku/plugins/management/be/testing.dart';
+import 'package:sapiku/plugins/management/be/uploadImageTest.dart';
 // import 'package:sapiku/plugins/management/be/uploadImageTest.dart';
 import 'package:sapiku/utils/db/cloud_handler.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
@@ -12,21 +13,6 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await Workmanager().initialize(syncCallback);
-  // await Workmanager().registerPeriodicTask(
-  //   SyncEngine.taskKeySync,
-  //   SyncEngine.taskNameSync,
-  //   frequency: SyncEngine.interval,
-  //   constraints: Constraints(
-  //     networkType: NetworkType.connected,
-  //   )
-  // );
-  // // #region setup
-  // await CloudHandler.cloudSetup();
-  // await LocalDBHandler.setup();
-  // await CloudHandler.test();
-  // print("Login Res: ${await ManageUtils.login()}");
-  // #endregion
 
   runApp(const MyApp());
 }
@@ -90,19 +76,13 @@ class _AppBootstrapScreenState extends State<AppBootstrapScreen> {
       await LocalDBHandler.setup();
 
       if (!mounted) return;
-      setState(() => _statusText = 'Menguji koneksi server...');
-      await CloudHandler.test();
-
-      if (!mounted) return;
-      setState(() => _statusText = 'Melakukan login otomatis...');
-      final loginRes = await SyncEngine.login();
-      debugPrint('Login Res: $loginRes');
-
-      if (!mounted) return;
       // Ganti dengan halaman utama aplikasi Anda
       Navigator.of(context).pushReplacementNamed(AppRouter.home);
-      // Navigator.of(context).pushReplacement(
-      //   MaterialPageRoute(builder: (_) => const TestSync()),
+      // Navigator.pushReplacement<void, void>(
+      //   context,
+      //   MaterialPageRoute<void>(
+      //     builder: (BuildContext context) => const CloudinaryTestPage(),
+      //   ),
       // );
     } catch (e) {
       if (!mounted) return;
@@ -140,8 +120,8 @@ class _AppBootstrapScreenState extends State<AppBootstrapScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Bisa diganti logo aplikasi atau animasi Lottie
-                    // const Image(image: AssetImage("assets/images/logo.png"),),
-                    const CircularProgressIndicator(),
+                    const Image(image: AssetImage("assets/images/logo.png"),),
+                    // const CircularProgressIndicator(),
                     const SizedBox(height: 20),
                     Text(
                       _statusText,
