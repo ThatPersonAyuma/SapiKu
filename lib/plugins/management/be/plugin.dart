@@ -5,7 +5,7 @@ import 'package:sapiku/plugins/management/be/db_class/transaction.dart'
 import 'package:sapiku/plugins/management/be/db_class/transaction_detail.dart'
     show TransactionDetail;
 import 'package:sapiku/plugins/management/be/sync.dart' show SyncEngine;
-import 'package:sapiku/plugins/management/be/utils.dart';
+import 'package:sapiku/plugins/management/be/report.dart';
 import 'package:sapiku/utils/cloudinary_handler.dart';
 import 'package:sapiku/utils/db/local_handler.dart';
 import 'package:sapiku/utils/file_handler.dart';

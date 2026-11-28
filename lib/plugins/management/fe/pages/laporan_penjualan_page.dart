@@ -5,7 +5,7 @@ import 'package:sapiku/core/fe/widgets/app_bottom_bar.dart';
 import 'package:sapiku/core/fe/widgets/app_top_bar.dart';
 import 'package:sapiku/plugins/management/be/plugin.dart';
 import 'package:sapiku/plugins/management/be/report.dart' show ProductReport;
-import 'package:sapiku/plugins/management/be/utils.dart';
+import 'package:sapiku/plugins/management/be/report.dart';
 
 class LaporanPenjualanPage extends StatelessWidget {
   const LaporanPenjualanPage({super.key});

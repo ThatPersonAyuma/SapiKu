@@ -29,8 +29,8 @@ Future<bool> doSyncWork() async {
   );
   try {
     WidgetsFlutterBinding.ensureInitialized();
-    await CloudHandler.cloudSetup();
     await LocalDBHandler.setup();
+    await CloudHandler.cloudSetup();
 
     // Pastikan SyncEngine.doSync mengembalikan boolean (true jika sukses, false jika gagal)
     bool synced = await SyncEngine.runSync();
@@ -143,6 +143,24 @@ class SyncEngine {
         data TEXT NULL
       );
     """);
+    // Seeder
+    final date = DateTime.parse(
+      '2026-11-07 02:28:50.534194+00',
+    ).toIso8601String();
+    batch.execute(
+      """
+      INSERT INTO $_lastSyncsTableName (name, time)
+      VALUES (?, ?);
+    """,
+      [_taskNamePull + Product.tableName, date],
+    );
+    batch.execute(
+      """
+      INSERT INTO $_lastSyncsTableName (name, time)
+      VALUES (?, ?);
+    """,
+      [_taskNamePull + Transaction.tableName, date],
+    );
   }
 
   static Future<DateTime?> _getLastPullProduct() async {
@@ -156,7 +174,13 @@ class SyncEngine {
     if (res == null) return null;
     if (res.isEmpty) {
       final date = DateTime.parse('2026-11-07 02:28:50.534194+00');
-      await _setLastPullProduct(date);
+      LocalDBHandler.runRawInsertQuery(
+        """
+        INSERT INTO $_lastSyncsTableName (name, time)
+        VALUES (?, ?);
+      """,
+        [_taskNamePull + Product.tableName, date.toIso8601String()],
+      );
       return date;
     } else {
       return DateTime.parse(res[0]['time'] as String);
@@ -170,7 +194,7 @@ class SyncEngine {
     SET time=?
     WHERE name=?;
     """,
-      [time.toUtc().toIso8601String(), _taskNamePull + Product.tableName],
+      [time.toIso8601String(), _taskNamePull + Product.tableName],
     );
     return updatedId;
   }
@@ -186,7 +210,13 @@ class SyncEngine {
     if (res == null) return null;
     if (res.isEmpty) {
       final date = DateTime.parse('2026-11-07 02:28:50.534194+00');
-      await _setLastPullTransaction(date);
+      LocalDBHandler.runRawInsertQuery(
+        """
+        INSERT INTO $_lastSyncsTableName (name, time)
+        VALUES (?, ?);
+      """,
+        [_taskNamePull + Transaction.tableName, date.toIso8601String()],
+      );
       return date;
     } else {
       return DateTime.parse(res[0]['time'] as String);
@@ -200,7 +230,7 @@ class SyncEngine {
     SET time=?
     WHERE name=?;
     """,
-      [time.toUtc().toIso8601String(), _taskNamePull + Transaction.tableName],
+      [time.toIso8601String(), _taskNamePull + Transaction.tableName],
     );
     return updatedId;
   }
@@ -465,6 +495,7 @@ class SyncEngine {
       return false;
     }
     final datetime = datetimeTime.toIso8601String();
+    print("last sync product: $datetime");
     final syncTables = await SyncEngine._needToSyncProduct(lastSync: datetime);
     List<int>? modifiedProductByCloudIds;
     // Pull Sync
@@ -548,6 +579,7 @@ class SyncEngine {
       }
       await batch.commit(noResult: true);
       _setLastPullProduct(serverDateTime);
+      print("new sync product: $serverDateTime");
     }
 
     // Pull Sync Transaction
@@ -557,6 +589,7 @@ class SyncEngine {
       return false;
     }
     final datetimeT = datetimeTime2.toIso8601String();
+    print("last sync transaction: $datetimeT");
     final syncTablesT = await SyncEngine._needToSynTransaction(
       lastSync: datetimeT,
     );
@@ -610,6 +643,7 @@ class SyncEngine {
       }
       await batch.commit(noResult: true);
       _setLastPullTransaction(serverDateTime);
+      print("new sync transaction: $serverDateTime");
       print("Pull Sync Transaction success");
     }
     print("Start Push |Sync|");

@@ -66,14 +66,14 @@ class _AppBootstrapScreenState extends State<AppBootstrapScreen> {
           networkType: NetworkType.connected,
         ),
       );
+      if (!mounted) return;
+      setState(() => _statusText = 'Menyiapkan database lokal...');
+      await LocalDBHandler.setup();
 
       if (!mounted) return;
       setState(() => _statusText = 'Menyiapkan layanan cloud...');
       await CloudHandler.cloudSetup();
 
-      if (!mounted) return;
-      setState(() => _statusText = 'Menyiapkan database lokal...');
-      await LocalDBHandler.setup();
 
       if (!mounted) return;
       // Ganti dengan halaman utama aplikasi Anda
